@@ -1,0 +1,25 @@
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[auth]
+site_url = "fidus://localhost"
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[functions.update-prices]
+verify_jwt = false
+
+[functions.update-tefas]
+verify_jwt = false
+
+[functions.proxy-tefas]
+verify_jwt = false
+
+[functions.update-tefas-funds]
+verify_jwt = false
