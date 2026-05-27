@@ -10,9 +10,9 @@ Deno.serve((req) => {
 
   return new Response(
     JSON.stringify({
-      error: "deprecated_tefas_proxy",
+      error: "deprecated_tefas_edge_function",
       message:
-        "TEFAS/BEFAS data is server-ingested by workers/tefas_ingest and read from Supabase.",
+        "TEFAS/BEFAS price ingestion now runs only through workers/tefas_ingest.",
     }),
     {
       status: 410,

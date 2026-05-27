@@ -6,6 +6,11 @@ double? _pd(dynamic v) {
   return null;
 }
 
+double? _positiveDouble(dynamic v) {
+  final n = _pd(v);
+  return n != null && n > 0 ? n : null;
+}
+
 int? _pi(dynamic v) {
   if (v == null) return null;
   if (v is int) return v;
@@ -80,7 +85,15 @@ class TefasFund {
   final double? return6Month;
   final double? return1Year;
   final double? returnYtd;
+  final double? return3Year;
+  final double? return5Year;
   final double? totalSize;
+  final double? shareCount;
+  final int? investorCount;
+  final double? exchangeBulletinPrice;
+  final String? priceDate;
+  final String? sourceFundType;
+  final String? fundFamilyLabel;
   final bool isBefas;
 
   const TefasFund({
@@ -95,7 +108,15 @@ class TefasFund {
     this.return6Month,
     this.return1Year,
     this.returnYtd,
+    this.return3Year,
+    this.return5Year,
     this.totalSize,
+    this.shareCount,
+    this.investorCount,
+    this.exchangeBulletinPrice,
+    this.priceDate,
+    this.sourceFundType,
+    this.fundFamilyLabel,
     this.isBefas = false,
   });
 
@@ -103,16 +124,24 @@ class TefasFund {
     return TefasFund(
       code: row['code'] as String,
       name: row['name'] as String? ?? '',
-      price: (row['price'] as num?)?.toDouble(),
+      price: _positiveDouble(row['price']),
       type: row['type'] as String?,
       category: row['category'] as String?,
-      return1Week: (row['return_1w'] as num?)?.toDouble(),
-      return1Month: (row['return_1m'] as num?)?.toDouble(),
-      return3Month: (row['return_3m'] as num?)?.toDouble(),
-      return6Month: (row['return_6m'] as num?)?.toDouble(),
-      return1Year: (row['return_1y'] as num?)?.toDouble(),
-      returnYtd: (row['return_ytd'] as num?)?.toDouble(),
-      totalSize: (row['total_size'] as num?)?.toDouble(),
+      return1Week: _pd(row['return_1w']),
+      return1Month: _pd(row['return_1m']),
+      return3Month: _pd(row['return_3m']),
+      return6Month: _pd(row['return_6m']),
+      return1Year: _pd(row['return_1y']),
+      returnYtd: _pd(row['return_ytd']),
+      return3Year: _pd(row['return_3y']),
+      return5Year: _pd(row['return_5y']),
+      totalSize: _pd(row['total_size']),
+      shareCount: _pd(row['share_count']),
+      investorCount: _pi(row['investor_count']),
+      exchangeBulletinPrice: _positiveDouble(row['exchange_bulletin_price']),
+      priceDate: row['price_date'] as String?,
+      sourceFundType: row['source_fon_tipi'] as String?,
+      fundFamilyLabel: row['fund_family_label'] as String?,
       isBefas: row['is_befas'] as bool? ?? false,
     );
   }
@@ -175,7 +204,7 @@ class TefasFund {
     return TefasFund(
       code: code,
       name: name,
-      price: _pd(
+      price: _positiveDouble(
         json['price'] ??
             json['nav'] ??
             json['navValue'] ??
@@ -249,13 +278,30 @@ class TefasFund {
             json['yil_basi'] ??
             json['yilBasi'],
       ),
+      return3Year: _pd(json['return3y'] ?? json['getiri3y']),
+      return5Year: _pd(json['return5y'] ?? json['getiri5y']),
       totalSize: _pd(
         json['total_size'] ??
             json['fund_size'] ??
             json['fonBuyuklugu'] ??
+            json['portfoyBuyukluk'] ??
             json['buyukluk'] ??
             json['size'],
       ),
+      shareCount: _pd(json['share_count'] ?? json['tedPaySayisi']),
+      investorCount: _pi(json['investor_count'] ?? json['kisiSayisi']),
+      exchangeBulletinPrice: _pd(
+        json['exchange_bulletin_price'] ?? json['borsaBultenFiyat'],
+      ),
+      priceDate: _str(
+        json['price_date'] ?? json['tarih'],
+      ).let((s) => s.isEmpty ? null : s),
+      sourceFundType: _str(
+        json['source_fon_tipi'] ?? json['fonTipi'],
+      ).let((s) => s.isEmpty ? null : s),
+      fundFamilyLabel: _str(
+        json['fund_family_label'],
+      ).let((s) => s.isEmpty ? null : s),
       isBefas:
           isBefas ||
           isPension, // Eğer emeklilik fonuysa doğrudan BEFAS sekmesine gönder
@@ -265,62 +311,6 @@ class TefasFund {
 
 extension _LetExt<T> on T {
   R let<R>(R Function(T) block) => block(this);
-}
-
-// ──────────────────────── Tarihsel Fiyat Kaydı ────────────────────────
-
-class TefasFundHistoryEntry {
-  final DateTime date;
-  final double price;
-
-  const TefasFundHistoryEntry({required this.date, required this.price});
-
-  factory TefasFundHistoryEntry.fromJson(Map<String, dynamic> json) {
-    // Tarih alanı — birçok format dene
-    DateTime date = DateTime.now();
-    final dateRaw = _str(
-      json['date'] ??
-          json['tarih'] ??
-          json['fon_tarihi'] ??
-          json['reportDate'] ??
-          json['report_date'] ??
-          json['valueDate'] ??
-          json['value_date'],
-    );
-    if (dateRaw.isNotEmpty) {
-      try {
-        // ISO: 2026-04-15 veya 2026-04-15T00:00:00
-        date = DateTime.parse(dateRaw);
-      } catch (_) {
-        try {
-          // Türk: 15.04.2026
-          final parts = dateRaw.split('.');
-          if (parts.length == 3) {
-            date = DateTime(
-              int.parse(parts[2]),
-              int.parse(parts[1]),
-              int.parse(parts[0]),
-            );
-          }
-        } catch (_) {}
-      }
-    }
-
-    final price = _pd(
-      json['price'] ??
-          json['nav'] ??
-          json['birimPayDegeri'] ??
-          json['BirimPayDegeri'] ??
-          json['birim_pay_degeri'] ??
-          json['lastPrice'] ??
-          json['last_price'] ??
-          json['fiyat'] ??
-          json['sonFiyat'] ??
-          json['son_fiyat'],
-    );
-
-    return TefasFundHistoryEntry(date: date, price: price ?? 0.0);
-  }
 }
 
 class TefasFundDetail extends TefasFund {
@@ -342,7 +332,15 @@ class TefasFundDetail extends TefasFund {
     super.return6Month,
     super.return1Year,
     super.returnYtd,
+    super.return3Year,
+    super.return5Year,
     super.totalSize,
+    super.shareCount,
+    super.investorCount,
+    super.exchangeBulletinPrice,
+    super.priceDate,
+    super.sourceFundType,
+    super.fundFamilyLabel,
     super.isBefas,
     this.isin,
     this.riskLevel,
@@ -350,6 +348,37 @@ class TefasFundDetail extends TefasFund {
     this.date,
     this.founder,
   });
+
+  factory TefasFundDetail.fromSupabase(Map<String, dynamic> row) {
+    final base = TefasFund.fromSupabase(row);
+    return TefasFundDetail(
+      code: base.code,
+      name: base.name,
+      price: base.price,
+      type: base.type,
+      category: base.category,
+      return1Week: base.return1Week,
+      return1Month: base.return1Month,
+      return3Month: base.return3Month,
+      return6Month: base.return6Month,
+      return1Year: base.return1Year,
+      returnYtd: base.returnYtd,
+      return3Year: base.return3Year,
+      return5Year: base.return5Year,
+      totalSize: base.totalSize,
+      shareCount: base.shareCount,
+      investorCount: base.investorCount,
+      exchangeBulletinPrice: base.exchangeBulletinPrice,
+      priceDate: base.priceDate,
+      sourceFundType: base.sourceFundType,
+      fundFamilyLabel: base.fundFamilyLabel,
+      isBefas: base.isBefas,
+      riskLevel: _pi(row['risk_level'] ?? row['riskDegeri'] ?? row['risk']),
+      date: _str(
+        row['price_date'] ?? row['updated_at'],
+      ).let((s) => s.isEmpty ? null : s),
+    );
+  }
 
   factory TefasFundDetail.fromMerged(
     Map<String, dynamic> json,
@@ -398,7 +427,15 @@ class TefasFundDetail extends TefasFund {
       return6Month: base.return6Month,
       return1Year: base.return1Year,
       returnYtd: base.returnYtd,
+      return3Year: base.return3Year,
+      return5Year: base.return5Year,
       totalSize: base.totalSize,
+      shareCount: base.shareCount,
+      investorCount: base.investorCount,
+      exchangeBulletinPrice: base.exchangeBulletinPrice,
+      priceDate: base.priceDate,
+      sourceFundType: base.sourceFundType,
+      fundFamilyLabel: base.fundFamilyLabel,
       isBefas: isBefas,
       isin: isin.isEmpty ? null : isin,
       riskLevel: _pi(json['risk_value'] ?? json['riskDegeri'] ?? json['risk']),

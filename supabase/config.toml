@@ -15,11 +15,5 @@ enable_confirmations = false
 [functions.update-prices]
 verify_jwt = false
 
-[functions.update-tefas]
-verify_jwt = false
-
-[functions.proxy-tefas]
-verify_jwt = false
-
-[functions.update-tefas-funds]
+[functions.update-asset-metadata]
 verify_jwt = false

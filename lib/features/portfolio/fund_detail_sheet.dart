@@ -33,7 +33,12 @@ class _FundDetailSheetState extends State<FundDetailSheet> {
       widget.fund.code,
       isBefas: widget.fund.isBefas,
     );
-    if (mounted) setState(() { _detail = d; _loadingDetail = false; });
+    if (mounted) {
+      setState(() {
+        _detail = d;
+        _loadingDetail = false;
+      });
+    }
   }
 
   TefasFundDetail get _displayFund =>
@@ -50,7 +55,15 @@ class _FundDetailSheetState extends State<FundDetailSheet> {
         return6Month: widget.fund.return6Month,
         return1Year: widget.fund.return1Year,
         returnYtd: widget.fund.returnYtd,
+        return3Year: widget.fund.return3Year,
+        return5Year: widget.fund.return5Year,
         totalSize: widget.fund.totalSize,
+        shareCount: widget.fund.shareCount,
+        investorCount: widget.fund.investorCount,
+        exchangeBulletinPrice: widget.fund.exchangeBulletinPrice,
+        priceDate: widget.fund.priceDate,
+        sourceFundType: widget.fund.sourceFundType,
+        fundFamilyLabel: widget.fund.fundFamilyLabel,
         isBefas: widget.fund.isBefas,
       );
 
@@ -90,8 +103,7 @@ class _FundDetailSheetState extends State<FundDetailSheet> {
                     if (fund.assetDistribution != null &&
                         fund.assetDistribution!.isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      _Distribution(
-                          fund: fund, color: widget.color),
+                      _Distribution(fund: fund, color: widget.color),
                     ],
                     const SizedBox(height: 8),
                   ],
@@ -180,8 +192,7 @@ class _Header extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 4,
                 children: [
-                  if (fund.isBefas)
-                    _Badge(label: 'BEFAS', color: color),
+                  if (fund.isBefas) _Badge(label: 'BEFAS', color: color),
                   if (fund.type != null && fund.type!.isNotEmpty)
                     _Badge(label: fund.type!, color: color),
                   if (fund.category != null && fund.category!.isNotEmpty)
@@ -259,6 +270,22 @@ class _KeyMetrics extends StatelessWidget {
         null,
       ));
     }
+    if (fund.investorCount != null && fund.investorCount! > 0) {
+      metrics.add((
+        Icons.people_outline_rounded,
+        'Yatırımcı',
+        _formatCount(fund.investorCount!),
+        null,
+      ));
+    }
+    if (fund.shareCount != null && fund.shareCount! > 0) {
+      metrics.add((
+        Icons.stacked_line_chart_rounded,
+        'Pay Adedi',
+        _formatNumber(fund.shareCount!),
+        null,
+      ));
+    }
     if (fund.founder != null) {
       metrics.add((Icons.business_outlined, 'Kurucu', fund.founder, null));
     }
@@ -274,19 +301,23 @@ class _KeyMetrics extends StatelessWidget {
           Row(
             children: metrics
                 .take(3)
-                .map((m) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: m.$1 == Icons.shield_outlined && fund.riskLevel != null
-                            ? _RiskCard(risk: fund.riskLevel!)
-                            : _MetricCard(
-                                icon: m.$1,
-                                label: m.$2,
-                                value: m.$3 ?? '—',
-                                valueColor: m.$4,
-                              ),
-                      ),
-                    ))
+                .map(
+                  (m) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child:
+                          m.$1 == Icons.shield_outlined &&
+                              fund.riskLevel != null
+                          ? _RiskCard(risk: fund.riskLevel!)
+                          : _MetricCard(
+                              icon: m.$1,
+                              label: m.$2,
+                              value: m.$3 ?? '—',
+                              valueColor: m.$4,
+                            ),
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         // Kurucu varsa ikinci satırda
@@ -295,17 +326,19 @@ class _KeyMetrics extends StatelessWidget {
           Row(
             children: metrics
                 .skip(3)
-                .map((m) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: _MetricCard(
-                          icon: m.$1,
-                          label: m.$2,
-                          value: m.$3 ?? '—',
-                          valueColor: m.$4,
-                        ),
+                .map(
+                  (m) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _MetricCard(
+                        icon: m.$1,
+                        label: m.$2,
+                        value: m.$3 ?? '—',
+                        valueColor: m.$4,
                       ),
-                    ))
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         ],
@@ -318,6 +351,19 @@ class _KeyMetrics extends StatelessWidget {
     if (size >= 1e6) return '₺${(size / 1e6).toStringAsFixed(1)} Mn';
     if (size >= 1e3) return '₺${(size / 1e3).toStringAsFixed(0)} B';
     return '₺${size.toStringAsFixed(0)}';
+  }
+
+  String _formatCount(int value) {
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)} Mn';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)} B';
+    return value.toString();
+  }
+
+  String _formatNumber(double value) {
+    if (value >= 1e9) return '${(value / 1e9).toStringAsFixed(2)} Mr';
+    if (value >= 1e6) return '${(value / 1e6).toStringAsFixed(1)} Mn';
+    if (value >= 1e3) return '${(value / 1e3).toStringAsFixed(0)} B';
+    return value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2);
   }
 }
 
@@ -445,6 +491,8 @@ class _Returns extends StatelessWidget {
       ('6A', fund.return6Month),
       ('1Y', fund.return1Year),
       ('YBB', fund.returnYtd),
+      ('3Y', fund.return3Year),
+      ('5Y', fund.return5Year),
     ].where((e) => e.$2 != null).toList();
 
     if (items.isEmpty) return const SizedBox.shrink();
@@ -454,45 +502,62 @@ class _Returns extends StatelessWidget {
       children: [
         Text(
           'Getiri Oranları',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(fontWeight: FontWeight.w700, fontSize: 13),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
         ),
         const SizedBox(height: 10),
-        Row(
-          children: items.map((item) {
-            final positive = (item.$2 ?? 0) >= 0;
-            final c =
-                positive ? const Color(0xFF00C853) : const Color(0xFFFF1744);
-            return Expanded(
-              child: Container(
-                margin: const EdgeInsets.only(right: 6),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-                decoration: BoxDecoration(
-                  color: c.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: c.withValues(alpha: 0.2)),
-                ),
-                child: Column(
-                  children: [
-                    Text(item.$1,
-                        style:
-                            TextStyle(fontSize: 9, color: Colors.grey[600]),
-                        textAlign: TextAlign.center),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${positive ? '+' : ''}${item.$2!.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w800, color: c),
-                      textAlign: TextAlign.center,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final itemWidth = (constraints.maxWidth - 18) / 4;
+            return Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: items.map((item) {
+                final positive = (item.$2 ?? 0) >= 0;
+                final c = positive
+                    ? const Color(0xFF00C853)
+                    : const Color(0xFFFF1744);
+                return SizedBox(
+                  width: itemWidth,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 4,
                     ),
-                  ],
-                ),
-              ),
+                    decoration: BoxDecoration(
+                      color: c.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: c.withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          item.$1,
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${positive ? '+' : ''}${item.$2!.toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: c,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
             );
-          }).toList(),
+          },
         ),
       ],
     );
@@ -511,6 +576,19 @@ class _InfoSection extends StatelessWidget {
     if (fund.isin != null) rows.add(('ISIN', fund.isin!));
     if (fund.founder != null) rows.add(('Kurucu', fund.founder!));
     if (fund.date != null) rows.add(('Son Güncelleme', fund.date!));
+    if (fund.priceDate != null) rows.add(('Fiyat Tarihi', fund.priceDate!));
+    if (fund.fundFamilyLabel != null) {
+      rows.add(('Fon Ailesi', fund.fundFamilyLabel!));
+    }
+    if (fund.sourceFundType != null) {
+      rows.add(('TEFAS Tipi', fund.sourceFundType!));
+    }
+    if (fund.exchangeBulletinPrice != null) {
+      rows.add((
+        'Borsa Bülten',
+        '₺${fund.exchangeBulletinPrice!.toStringAsFixed(fund.exchangeBulletinPrice! < 1 ? 6 : 4)}',
+      ));
+    }
     if (fund.category != null) rows.add(('Kategori', fund.category!));
     if (fund.type != null) rows.add(('Fon Türü', fund.type!));
 
@@ -521,10 +599,10 @@ class _InfoSection extends StatelessWidget {
       children: [
         Text(
           'Fon Bilgileri',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(fontWeight: FontWeight.w700, fontSize: 13),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
         ),
         const SizedBox(height: 10),
         Container(
@@ -536,26 +614,35 @@ class _InfoSection extends StatelessWidget {
           ),
           child: Column(
             children: rows
-                .map((r) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 110,
-                            child: Text(r.$1,
-                                style: TextStyle(
-                                    fontSize: 12, color: Colors.grey[500])),
+                .map(
+                  (r) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 110,
+                          child: Text(
+                            r.$1,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                            ),
                           ),
-                          Expanded(
-                            child: Text(r.$2,
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600)),
+                        ),
+                        Expanded(
+                          child: Text(
+                            r.$2,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ],
-                      ),
-                    ))
+                        ),
+                      ],
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         ),
@@ -592,9 +679,12 @@ class _Distribution extends StatelessWidget {
 
   String _friendlyName(String key) =>
       _nameMap[key.toLowerCase()] ??
-      key.replaceAll('_', ' ').replaceAllMapped(
-          RegExp(r'(\b\w)'),
-          (m) => m.group(0)!.toUpperCase());
+      key
+          .replaceAll('_', ' ')
+          .replaceAllMapped(
+            RegExp(r'(\b\w)'),
+            (m) => m.group(0)!.toUpperCase(),
+          );
 
   @override
   Widget build(BuildContext context) {
@@ -607,10 +697,10 @@ class _Distribution extends StatelessWidget {
       children: [
         Text(
           'Varlık Dağılımı',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(fontWeight: FontWeight.w700, fontSize: 13),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
         ),
         const SizedBox(height: 10),
         Container(
@@ -634,7 +724,9 @@ class _Distribution extends StatelessWidget {
                         Text(
                           _friendlyName(e.key),
                           style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w500),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         Text(
                           '%${pct.toStringAsFixed(1)}',
@@ -651,8 +743,7 @@ class _Distribution extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: pct / 100,
-                        backgroundColor:
-                            Theme.of(context).dividerColor,
+                        backgroundColor: Theme.of(context).dividerColor,
                         valueColor: AlwaysStoppedAnimation(color),
                         minHeight: 6,
                       ),

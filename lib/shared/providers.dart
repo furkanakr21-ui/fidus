@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -43,8 +44,8 @@ class PortfoliosNotifier extends Notifier<List<PortfolioModel>> {
 
 final portfoliosProvider =
     NotifierProvider<PortfoliosNotifier, List<PortfolioModel>>(
-  PortfoliosNotifier.new,
-);
+      PortfoliosNotifier.new,
+    );
 
 // ─────────────────────────────────────────
 // Aktif Portföy
@@ -78,8 +79,8 @@ class ActivePortfolioNotifier extends Notifier<String> {
 
 final activePortfolioProvider =
     NotifierProvider<ActivePortfolioNotifier, String>(
-  ActivePortfolioNotifier.new,
-);
+      ActivePortfolioNotifier.new,
+    );
 
 // Eski kod uyumluluğu için alias
 final activeProfileProvider = activePortfolioProvider;
@@ -132,9 +133,19 @@ class AssetsNotifier extends Notifier<List<AssetModel>> {
     double usdToTry,
   ) {
     return assets.map((a) {
-      final key = '${a.apiId ?? a.symbol}_${a.apiSource ?? 'manual'}';
-      final rec = prices[key];
-      if (rec == null) return a.copyWith(usdToTry: usdToTry);
+      final baseKey = a.apiId ?? a.symbol;
+      final src = a.apiSource ?? 'manual';
+      // Önce asıl key'e bak; bulamazsan karşı tarafı dene (tefas↔befas sınıflandırma
+      // değişimi sonucu oluşan api_source uyumsuzluğunu giderir).
+      final altSrc = src == 'tefas'
+          ? 'befas'
+          : (src == 'befas' ? 'tefas' : null);
+      final rec =
+          prices['${baseKey}_$src'] ??
+          (altSrc != null ? prices['${baseKey}_$altSrc'] : null);
+      if (rec == null || rec.price <= 0) {
+        return a.copyWith(usdToTry: usdToTry);
+      }
       double price;
       if (rec.priceCurrency == 'USD' && a.currency == 'TRY') {
         price = rec.price * usdToTry;
@@ -193,11 +204,16 @@ class PriceRecord {
 
 class PricesNotifier extends Notifier<Map<String, PriceRecord>> {
   RealtimeChannel? _channel;
+  Timer? _debounce;
 
   @override
   Map<String, PriceRecord> build() {
     _setupRealtime();
     Future.microtask(_load);
+    ref.onDispose(() {
+      _debounce?.cancel();
+      _channel?.unsubscribe();
+    });
     return {};
   }
 
@@ -208,21 +224,40 @@ class PricesNotifier extends Notifier<Map<String, PriceRecord>> {
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'prices',
-          callback: (_) {
-            _load();
-          },
+          callback: (_) => _scheduleLoad(),
         )
         .subscribe();
-    ref.onDispose(() => _channel?.unsubscribe());
+  }
+
+  // Çok sayıda Realtime eventi art arda geldiğinde (toplu güncelleme sırasında)
+  // hepsini tek bir _load() çağrısına indirgeyerek race condition'ı önler.
+  void _scheduleLoad() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(seconds: 2), _load);
   }
 
   Future<void> _load() async {
-    final data = await supabase.from('prices').select();
+    // prices tablosu 3000+ satır — PostgREST default 1000 limitini aşmamak için
+    // sayfalandırarak tüm fiyatları çek.
+    final List<dynamic> allData = [];
+    int from = 0;
+    const int pageSize = 1000;
+    while (true) {
+      final page = await supabase
+          .from('prices')
+          .select()
+          .range(from, from + pageSize - 1);
+      allData.addAll(page as List);
+      if ((page as List).length < pageSize) break;
+      from += pageSize;
+    }
     final map = <String, PriceRecord>{};
-    for (final row in data as List) {
+    for (final row in allData) {
+      final rawPrice = (row['price'] as num).toDouble();
+      if (rawPrice <= 0) continue;
       final key = '${row['symbol']}_${row['api_source']}';
       map[key] = PriceRecord(
-        (row['price'] as num).toDouble(),
+        rawPrice,
         row['price_currency'] as String? ?? 'TRY',
       );
     }
@@ -235,8 +270,8 @@ class PricesNotifier extends Notifier<Map<String, PriceRecord>> {
 
 final pricesProvider =
     NotifierProvider<PricesNotifier, Map<String, PriceRecord>>(
-  PricesNotifier.new,
-);
+      PricesNotifier.new,
+    );
 
 // ─────────────────────────────────────────
 // Döviz Kurları (Realtime)
@@ -269,8 +304,7 @@ class ExchangeRatesNotifier extends Notifier<Map<String, double>> {
     final data = await supabase.from('exchange_rates').select();
     final map = <String, double>{};
     for (final row in data as List) {
-      map[row['currency'] as String] =
-          (row['rate_per_usd'] as num).toDouble();
+      map[row['currency'] as String] = (row['rate_per_usd'] as num).toDouble();
     }
     state = map;
     CurrencyUtils.updateRates(map);
@@ -284,8 +318,8 @@ class ExchangeRatesNotifier extends Notifier<Map<String, double>> {
 
 final exchangeRatesProvider =
     NotifierProvider<ExchangeRatesNotifier, Map<String, double>>(
-  ExchangeRatesNotifier.new,
-);
+      ExchangeRatesNotifier.new,
+    );
 
 // ─────────────────────────────────────────
 // Nakit Akışı (Realtime)
@@ -343,8 +377,8 @@ class CashFlowNotifier extends Notifier<List<CashFlowModel>> {
 
 final cashflowProvider =
     NotifierProvider<CashFlowNotifier, List<CashFlowModel>>(
-  CashFlowNotifier.new,
-);
+      CashFlowNotifier.new,
+    );
 
 // ─────────────────────────────────────────
 // Hedefler (Realtime)
@@ -463,8 +497,8 @@ class TransactionsNotifier extends Notifier<List<TransactionModel>> {
 
 final transactionsProvider =
     NotifierProvider<TransactionsNotifier, List<TransactionModel>>(
-  TransactionsNotifier.new,
-);
+      TransactionsNotifier.new,
+    );
 
 // ─────────────────────────────────────────
 // Hesaplamalar (computed)
@@ -502,9 +536,7 @@ final totalValueProvider = Provider<double>((ref) {
 });
 
 final totalCostProvider = Provider<double>((ref) {
-  return ref
-      .watch(assetsProvider)
-      .fold(0.0, (sum, a) => sum + a.totalCost);
+  return ref.watch(assetsProvider).fold(0.0, (sum, a) => sum + a.totalCost);
 });
 
 final totalPLProvider = Provider<double>((ref) {
@@ -550,10 +582,10 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
   }
 
   ThemeMode _parse(String? v) => switch (v) {
-        'light' => ThemeMode.light,
-        'dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
-      };
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
 
   Future<void> setThemeMode(ThemeMode mode) async {
     final key = switch (mode) {
@@ -580,10 +612,12 @@ class PriceLoadingNotifier extends Notifier<bool> {
   void setLoading(bool v) => state = v;
 }
 
-final priceLoadingProvider =
-    NotifierProvider<PriceLoadingNotifier, bool>(PriceLoadingNotifier.new);
+final priceLoadingProvider = NotifierProvider<PriceLoadingNotifier, bool>(
+  PriceLoadingNotifier.new,
+);
 
-// Fiyat güncellemesi sunucu tarafında olur; bu provider UI refresh için tutuldu
+// Fiyat güncellemesi sunucu tarafında zamanlanmış görevlerle olur.
+// Bu provider yalnızca Supabase tablolarından okuyarak UI'ı yeniler.
 class PriceUpdateNotifier extends Notifier<DateTime?> {
   @override
   DateTime? build() => null;
@@ -591,10 +625,6 @@ class PriceUpdateNotifier extends Notifier<DateTime?> {
   Future<void> updatePrices() async {
     ref.read(priceLoadingProvider.notifier).setLoading(true);
     try {
-      await Future.wait([
-        supabase.functions.invoke('update-prices'),
-        supabase.functions.invoke('update-tefas'),
-      ]);
       await ref.read(pricesProvider.notifier).refresh();
       await ref.read(exchangeRatesProvider.notifier).refresh();
       state = DateTime.now();
@@ -604,8 +634,9 @@ class PriceUpdateNotifier extends Notifier<DateTime?> {
   }
 }
 
-final priceUpdateProvider =
-    NotifierProvider<PriceUpdateNotifier, DateTime?>(PriceUpdateNotifier.new);
+final priceUpdateProvider = NotifierProvider<PriceUpdateNotifier, DateTime?>(
+  PriceUpdateNotifier.new,
+);
 
 // Alt navigasyon
 class TabIndexNotifier extends Notifier<int> {
@@ -614,5 +645,6 @@ class TabIndexNotifier extends Notifier<int> {
   void setTab(int index) => state = index;
 }
 
-final tabIndexProvider =
-    NotifierProvider<TabIndexNotifier, int>(TabIndexNotifier.new);
+final tabIndexProvider = NotifierProvider<TabIndexNotifier, int>(
+  TabIndexNotifier.new,
+);

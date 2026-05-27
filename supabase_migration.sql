@@ -101,7 +101,7 @@ CREATE TABLE goals (
 CREATE TABLE prices (
   symbol          TEXT NOT NULL,
   api_source      TEXT NOT NULL,
-  price           NUMERIC(20, 8) NOT NULL,
+  price           NUMERIC(20, 8) NOT NULL CHECK (price > 0),
   price_currency  TEXT NOT NULL DEFAULT 'TRY',
   updated_at      TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (symbol, api_source)
@@ -154,7 +154,7 @@ ALTER TABLE exchange_rates REPLICA IDENTITY FULL;
 ALTER PUBLICATION supabase_realtime ADD TABLE assets, transactions, cashflows, goals, prices, exchange_rates;
 
 -- ============================================================
--- TEFAS/BEFAS Fon Listesi Cache (update-tefas-funds edge function yazar)
+-- TEFAS/BEFAS Fon Listesi Cache (dış Python worker yazar)
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS tefas_funds (
@@ -163,14 +163,25 @@ CREATE TABLE IF NOT EXISTS tefas_funds (
   name        TEXT,
   type        TEXT,
   category    TEXT,
-  price       NUMERIC(20, 8),
-  return_1w   NUMERIC(10, 6),
-  return_1m   NUMERIC(10, 6),
-  return_3m   NUMERIC(10, 6),
-  return_6m   NUMERIC(10, 6),
-  return_1y   NUMERIC(10, 6),
-  return_ytd  NUMERIC(10, 6),
+  price       NUMERIC(20, 8) CHECK (price IS NULL OR price > 0),
+  return_1w   NUMERIC(18, 6),
+  return_1m   NUMERIC(18, 6),
+  return_3m   NUMERIC(18, 6),
+  return_6m   NUMERIC(18, 6),
+  return_1y   NUMERIC(18, 6),
+  return_ytd  NUMERIC(18, 6),
+  return_3y   NUMERIC(18, 6),
+  return_5y   NUMERIC(18, 6),
   total_size  NUMERIC(20, 2),
+  source_fon_tipi text,
+  fund_family_label text,
+  price_date date,
+  share_count numeric(30, 8),
+  investor_count bigint,
+  exchange_bulletin_price numeric(20, 8),
+  risk_level integer,
+  last_seen_at timestamptz,
+  is_active boolean not null default true,
   updated_at  TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (code, is_befas)
 );
@@ -179,6 +190,34 @@ ALTER TABLE tefas_funds ENABLE ROW LEVEL SECURITY;
 
 -- Herkese açık okuma (piyasa verisi)
 CREATE POLICY "public_read_tefas_funds" ON tefas_funds FOR SELECT USING (true);
+
+CREATE TABLE IF NOT EXISTS market_data_runs (
+  id bigserial primary key,
+  source text not null,
+  started_at timestamptz not null,
+  finished_at timestamptz,
+  ok boolean not null default false,
+  published boolean not null default false,
+  target_date date,
+  request_count integer not null default 0,
+  retry_count integer not null default 0,
+  duration_s numeric generated always as (
+    case
+      when finished_at is null then null
+      else extract(epoch from (finished_at - started_at))
+    end
+  ) stored,
+  family_counts jsonb,
+  price_count integer,
+  zero_count integer not null default 0,
+  null_price_count integer not null default 0,
+  error_summary text,
+  created_at timestamptz not null default now()
+);
+
+ALTER TABLE market_data_runs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "market_data_runs authenticated read"
+  ON market_data_runs FOR SELECT TO authenticated USING (true);
 
 -- ============================================================
 -- YENI KULLANICI TRIGGER
