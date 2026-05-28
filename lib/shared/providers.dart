@@ -3,14 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/asset_model.dart';
+import 'models/daily_portfolio_change.dart';
 import 'models/income_expense_model.dart';
 import 'models/goal_model.dart';
+import 'models/portfolio_value_snapshot_model.dart';
 import 'models/portfolio_model.dart';
 import 'models/transaction_model.dart';
 import 'services/asset_service.dart';
 import 'services/cashflow_service.dart';
 import 'services/goal_service.dart';
 import 'services/portfolio_service.dart';
+import 'services/portfolio_snapshot_service.dart';
 import 'services/supabase_service.dart';
 import 'services/transaction_service.dart';
 import 'utils/currency_utils.dart';
@@ -84,6 +87,115 @@ final activePortfolioProvider =
 
 // Eski kod uyumluluğu için alias
 final activeProfileProvider = activePortfolioProvider;
+
+// ─────────────────────────────────────────
+// Günlük Portföy Snapshot'ı
+// ─────────────────────────────────────────
+
+class TodayPortfolioSnapshotNotifier extends Notifier<PortfolioValueSnapshot?> {
+  RealtimeChannel? _channel;
+
+  @override
+  PortfolioValueSnapshot? build() {
+    final portfolioId = ref.watch(activePortfolioProvider);
+    _channel?.unsubscribe();
+    if (portfolioId.isEmpty) return null;
+    _setupRealtime(portfolioId);
+    Future.microtask(() => _load(portfolioId));
+    return null;
+  }
+
+  void _setupRealtime(String portfolioId) {
+    _channel = supabase
+        .channel('portfolio_snapshots_$portfolioId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'portfolio_value_snapshots',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'portfolio_id',
+            value: portfolioId,
+          ),
+          callback: (_) => _load(portfolioId),
+        )
+        .subscribe();
+    ref.onDispose(() => _channel?.unsubscribe());
+  }
+
+  Future<void> _load(String portfolioId) async {
+    state = await PortfolioSnapshotService.getToday(portfolioId);
+  }
+
+  Future<void> refresh() async {
+    final portfolioId = ref.read(activePortfolioProvider);
+    if (portfolioId.isEmpty) return;
+    await _load(portfolioId);
+  }
+}
+
+final todayPortfolioSnapshotProvider =
+    NotifierProvider<TodayPortfolioSnapshotNotifier, PortfolioValueSnapshot?>(
+      TodayPortfolioSnapshotNotifier.new,
+    );
+
+class PortfolioSnapshotHistoryNotifier
+    extends Notifier<List<PortfolioValueSnapshot>> {
+  RealtimeChannel? _channel;
+
+  @override
+  List<PortfolioValueSnapshot> build() {
+    final portfolioId = ref.watch(activePortfolioProvider);
+    _channel?.unsubscribe();
+    if (portfolioId.isEmpty) return [];
+    _setupRealtime(portfolioId);
+    Future.microtask(() => _load(portfolioId));
+    return [];
+  }
+
+  void _setupRealtime(String portfolioId) {
+    _channel = supabase
+        .channel('portfolio_snapshot_history_$portfolioId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'portfolio_value_snapshots',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'portfolio_id',
+            value: portfolioId,
+          ),
+          callback: (_) => _load(portfolioId),
+        )
+        .subscribe();
+    ref.onDispose(() => _channel?.unsubscribe());
+  }
+
+  Future<void> _load(String portfolioId) async {
+    state = await PortfolioSnapshotService.getHistory(portfolioId);
+  }
+
+  Future<void> refresh() async {
+    final portfolioId = ref.read(activePortfolioProvider);
+    if (portfolioId.isEmpty) return;
+    await _load(portfolioId);
+  }
+}
+
+final portfolioSnapshotHistoryProvider =
+    NotifierProvider<
+      PortfolioSnapshotHistoryNotifier,
+      List<PortfolioValueSnapshot>
+    >(PortfolioSnapshotHistoryNotifier.new);
+
+final dailyPortfolioChangeProvider = Provider<DailyPortfolioChange>((ref) {
+  ref.watch(exchangeRatesProvider);
+  return DailyPortfolioChange.calculate(
+    currentValueTry: ref.watch(totalValueProvider),
+    snapshot: ref.watch(todayPortfolioSnapshotProvider),
+    displayCurrency: ref.watch(currencyProvider),
+  );
+});
 
 // ─────────────────────────────────────────
 // Varlıklar (Realtime)

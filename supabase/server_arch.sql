@@ -249,6 +249,9 @@ select cron.unschedule('update-tefas-funds-hourly') where exists (
 select cron.unschedule('update-asset-metadata-daily') where exists (
   select 1 from cron.job where jobname = 'update-asset-metadata-daily'
 );
+select cron.unschedule('record-portfolio-snapshots-daily') where exists (
+  select 1 from cron.job where jobname = 'record-portfolio-snapshots-daily'
+);
 
 -- update-prices: her 15 dakikada bir (hisse, kripto, emtia, döviz)
 select cron.schedule(
@@ -277,6 +280,17 @@ select cron.schedule(
     headers := '{"Content-Type": "application/json"}'::jsonb,
     body := '{}'::jsonb
   ) as request_id;
+  $cron$
+);
+
+-- portfolio snapshots: her gece 00:05'te (TR) / 21:05 UTC
+select cron.schedule(
+  'record-portfolio-snapshots-daily',
+  '5 21 * * *',
+  $cron$
+  select public.record_portfolio_value_snapshots(
+    ((now() at time zone 'Europe/Istanbul')::date)
+  );
   $cron$
 );
 

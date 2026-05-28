@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/asset_model.dart';
+import '../../shared/models/daily_portfolio_change.dart';
+import '../../shared/models/portfolio_history_chart_data.dart';
 import '../../shared/providers.dart';
 import '../../shared/utils/currency_utils.dart';
 import 'position_sheet.dart';
@@ -18,6 +21,7 @@ enum _SortOption { valueDesc, plDesc, nameAsc }
 class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   int _selectedFilter = 0;
   _SortOption _sortOption = _SortOption.valueDesc;
+  PortfolioHistoryRange _historyRange = PortfolioHistoryRange.month1;
 
   static const _filterLabels = [
     'Tümü',
@@ -192,10 +196,17 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     for (final a in allAssets) {
       symbolMap.putIfAbsent(a.symbol, () => []).add(a);
     }
-    final totalPL = totalValue - totalCost;
-    final totalPLPct = totalCost == 0 ? 0.0 : (totalPL / totalCost) * 100;
+    final dailyChange = ref.watch(dailyPortfolioChangeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final displayCurrency = ref.watch(currencyProvider);
+    ref.watch(exchangeRatesProvider);
+    final history = ref.watch(portfolioSnapshotHistoryProvider);
+    final historyData = PortfolioHistoryChartData.fromSnapshots(
+      history,
+      range: _historyRange,
+      displayCurrency: displayCurrency,
+      now: DateTime.now().toUtc().add(const Duration(hours: 3)),
+    );
     final dist = _calcDistribution(merged);
     final filterCounts = _filterCounts(merged);
 
@@ -215,10 +226,17 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                   context,
                   isDark,
                   totalValue,
-                  totalPL,
-                  totalPLPct,
+                  dailyChange,
                   totalCost,
                   merged.length,
+                  displayCurrency,
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _buildHistoryChart(
+                  context,
+                  isDark,
+                  historyData,
                   displayCurrency,
                 ),
               ),
@@ -329,14 +347,21 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     BuildContext context,
     bool isDark,
     double totalValue,
-    double totalPL,
-    double totalPLPct,
+    DailyPortfolioChange dailyChange,
     double totalCost,
     int count,
     String displayCurrency,
   ) {
-    final isProfit = totalPL >= 0;
-    final plColor = isProfit ? AppColors.profit : AppColors.loss;
+    final isProfit = dailyChange.isProfit;
+    final plColor = dailyChange.hasSnapshot
+        ? (isProfit ? AppColors.profit : AppColors.loss)
+        : AppColors.gold;
+    final dailyPercentText = dailyChange.hasSnapshot
+        ? '${isProfit ? '+' : ''}${dailyChange.percent.toStringAsFixed(2)}%'
+        : '--';
+    final dailyAmountText = dailyChange.hasSnapshot
+        ? dailyChange.formatAmount(absolute: true)
+        : 'Bekleniyor';
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
@@ -418,15 +443,17 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              isProfit
-                                  ? Icons.arrow_upward_rounded
-                                  : Icons.arrow_downward_rounded,
+                              dailyChange.hasSnapshot
+                                  ? (isProfit
+                                        ? Icons.arrow_upward_rounded
+                                        : Icons.arrow_downward_rounded)
+                                  : Icons.schedule_rounded,
                               color: plColor,
                               size: 13,
                             ),
                             const SizedBox(width: 3),
                             Text(
-                              '${isProfit ? '+' : ''}${totalPLPct.toStringAsFixed(2)}%',
+                              dailyPercentText,
                               style: TextStyle(
                                 color: plColor,
                                 fontSize: 13,
@@ -453,12 +480,14 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                       _summaryDivider(isDark),
                       _summaryMetric(
                         isDark,
-                        'Kar / Zarar',
-                        '${isProfit ? '+' : '-'}${CurrencyUtils.format(totalPL.abs(), displayCurrency)}',
+                        'Bugün',
+                        dailyAmountText,
                         plColor,
-                        isProfit
-                            ? Icons.trending_up_rounded
-                            : Icons.trending_down_rounded,
+                        dailyChange.hasSnapshot
+                            ? (isProfit
+                                  ? Icons.trending_up_rounded
+                                  : Icons.trending_down_rounded)
+                            : Icons.schedule_rounded,
                       ),
                       _summaryDivider(isDark),
                       _summaryMetric(
@@ -542,6 +571,149 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
       height: 36,
       margin: const EdgeInsets.symmetric(horizontal: 10),
       color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+    );
+  }
+
+  Widget _buildHistoryChart(
+    BuildContext context,
+    bool isDark,
+    PortfolioHistoryChartData data,
+    String displayCurrency,
+  ) {
+    final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final text = isDark ? AppColors.darkText : AppColors.lightText;
+    final secondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    final accent =
+        data.points.length >= 2 &&
+            data.points.last.value < data.points.first.value
+        ? AppColors.loss
+        : AppColors.primary;
+    final latestValue = data.points.isEmpty
+        ? null
+        : '${CurrencyUtils.symbol(displayCurrency)}'
+              '${CurrencyUtils.formatRaw(data.points.last.value)}';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Portföy Geçmişi',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: text,
+                    ),
+                  ),
+                ),
+                if (latestValue != null)
+                  Text(
+                    latestValue,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: text,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildHistoryRangeSelector(isDark),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 190,
+              child: data.hasEnoughData
+                  ? _PortfolioHistoryLineChart(
+                      data: data,
+                      accent: accent,
+                      border: border,
+                      secondary: secondary,
+                      displayCurrency: displayCurrency,
+                    )
+                  : _historyEmptyState(secondary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryRangeSelector(bool isDark) {
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final secondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    return SizedBox(
+      height: 34,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (context, index) {
+          final range = PortfolioHistoryRange.values[index];
+          final selected = range == _historyRange;
+          return InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => setState(() => _historyRange = range),
+            child: Container(
+              width: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColors.primary.withValues(alpha: 0.14)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: selected ? AppColors.primary : border,
+                ),
+              ),
+              child: Text(
+                range.label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? AppColors.primary : secondary,
+                ),
+              ),
+            ),
+          );
+        },
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemCount: PortfolioHistoryRange.values.length,
+      ),
+    );
+  }
+
+  Widget _historyEmptyState(Color secondary) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.show_chart_rounded, color: secondary, size: 30),
+          const SizedBox(height: 8),
+          Text(
+            'Geçmiş için ilk gece kayıtları bekleniyor',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: secondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1207,5 +1379,169 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
         ),
       ),
     );
+  }
+}
+
+class _PortfolioHistoryLineChart extends StatelessWidget {
+  final PortfolioHistoryChartData data;
+  final Color accent;
+  final Color border;
+  final Color secondary;
+  final String displayCurrency;
+
+  const _PortfolioHistoryLineChart({
+    required this.data,
+    required this.accent,
+    required this.border,
+    required this.secondary,
+    required this.displayCurrency,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final points = data.points;
+    final rawRange = data.maxValue - data.minValue;
+    final padding = rawRange == 0
+        ? data.maxValue.abs() * 0.04
+        : rawRange * 0.12;
+    final minY = (data.minValue - padding).clamp(0, double.infinity);
+    final maxY = data.maxValue + padding;
+    final spots = points
+        .asMap()
+        .entries
+        .map((entry) {
+          return FlSpot(entry.key.toDouble(), entry.value.value);
+        })
+        .toList(growable: false);
+
+    return LineChart(
+      LineChartData(
+        minX: 0,
+        maxX: (points.length - 1).toDouble(),
+        minY: minY.toDouble(),
+        maxY: maxY <= minY ? minY.toDouble() + 1 : maxY,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: _interval(minY.toDouble(), maxY.toDouble()),
+          getDrawingHorizontalLine: (_) =>
+              FlLine(color: border.withValues(alpha: 0.55), strokeWidth: 1),
+        ),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 48,
+              getTitlesWidget: (value, meta) => Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Text(
+                  _shortMoney(value),
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: secondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 26,
+              interval: _bottomInterval(points.length),
+              getTitlesWidget: (value, meta) {
+                final index = value.round();
+                if (index < 0 || index >= points.length) {
+                  return const SizedBox.shrink();
+                }
+                final date = points[index].date;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    '${date.day}.${date.month}',
+                    style: TextStyle(
+                      color: secondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => Colors.black87,
+            getTooltipItems: (items) => items.map((item) {
+              final index = item.x.round().clamp(0, points.length - 1);
+              final date = points[index].date;
+              return LineTooltipItem(
+                '${date.day}.${date.month}.${date.year}\n'
+                '${CurrencyUtils.symbol(displayCurrency)}'
+                '${CurrencyUtils.formatRaw(item.y)}',
+                const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.28,
+            color: accent,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(show: points.length <= 12),
+            belowBarData: BarAreaData(
+              show: true,
+              color: accent.withValues(alpha: 0.10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  double _interval(double min, double max) {
+    final range = max - min;
+    if (range <= 0) return 1;
+    return range / 3;
+  }
+
+  double _bottomInterval(int count) {
+    if (count <= 2) return 1;
+    if (count <= 8) return 2;
+    if (count <= 16) return 4;
+    if (count <= 40) return 8;
+    if (count <= 100) return 20;
+    return 60;
+  }
+
+  String _shortMoney(double value) {
+    final abs = value.abs();
+    final prefix = CurrencyUtils.symbol(displayCurrency);
+    if (abs >= 1000000000) {
+      return '$prefix${(value / 1000000000).toStringAsFixed(1)}B';
+    }
+    if (abs >= 1000000) {
+      return '$prefix${(value / 1000000).toStringAsFixed(1)}M';
+    }
+    if (abs >= 1000) return '$prefix${(value / 1000).toStringAsFixed(0)}K';
+    return '$prefix${value.round()}';
   }
 }

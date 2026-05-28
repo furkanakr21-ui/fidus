@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/asset_model.dart';
+import '../../shared/models/daily_portfolio_change.dart';
 import '../../shared/models/income_expense_model.dart';
 import '../../shared/models/goal_model.dart';
 import '../../shared/providers.dart';
@@ -19,40 +20,37 @@ class DashboardScreen extends ConsumerWidget {
     final merged = ref.watch(mergedAssetsProvider);
     final totalValue = ref.watch(totalValueProvider);
     final totalCost = ref.watch(totalCostProvider);
-    final totalPL = ref.watch(totalPLProvider);
+    final dailyChange = ref.watch(dailyPortfolioChangeProvider);
     ref.watch(priceUpdateProvider);
     final cashflows = ref.watch(cashflowProvider);
     final goals = ref.watch(goalsProvider);
     final displayCurrency = ref.watch(currencyProvider);
     final isLoading = ref.watch(priceLoadingProvider);
-    final totalPLPercent =
-        totalCost == 0 ? 0.0 : (totalPL / totalCost) * 100;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final lastUpdate = ref.watch(priceUpdateProvider);
     final updateStr = isLoading
         ? 'Güncelleniyor...'
         : lastUpdate == null
-            ? null
-            : 'Son: ${lastUpdate.hour.toString().padLeft(2, '0')}:${lastUpdate.minute.toString().padLeft(2, '0')}';
-    final isStale = !isLoading &&
+        ? null
+        : 'Son: ${lastUpdate.hour.toString().padLeft(2, '0')}:${lastUpdate.minute.toString().padLeft(2, '0')}';
+    final isStale =
+        !isLoading &&
         lastUpdate != null &&
         DateTime.now().difference(lastUpdate).inMinutes >= 10;
 
-    final recentCashflows = ([...cashflows]
-          ..sort((a, b) => b.date.compareTo(a.date)))
-        .take(3)
-        .toList();
+    final recentCashflows = ([
+      ...cashflows,
+    ]..sort((a, b) => b.date.compareTo(a.date))).take(3).toList();
 
-    final activeGoals = goals
-        .where((g) => g.currentAmount < g.targetAmount)
-        .toList()
-      ..sort((a, b) {
-        if (a.targetDate == null && b.targetDate == null) return 0;
-        if (a.targetDate == null) return 1;
-        if (b.targetDate == null) return -1;
-        return a.targetDate!.compareTo(b.targetDate!);
-      });
+    final activeGoals =
+        goals.where((g) => g.currentAmount < g.targetAmount).toList()
+          ..sort((a, b) {
+            if (a.targetDate == null && b.targetDate == null) return 0;
+            if (a.targetDate == null) return 1;
+            if (b.targetDate == null) return -1;
+            return a.targetDate!.compareTo(b.targetDate!);
+          });
     final nearestGoal = activeGoals.isNotEmpty ? activeGoals.first : null;
 
     return Scaffold(
@@ -70,14 +68,32 @@ class DashboardScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildHeader(context, ref, isLoading, updateStr,
-                          displayCurrency, isStale),
+                      _buildHeader(
+                        context,
+                        ref,
+                        isLoading,
+                        updateStr,
+                        displayCurrency,
+                        isStale,
+                      ),
                       const SizedBox(height: 22),
-                      _buildHeroCard(context, isDark, totalValue, totalPL,
-                          totalPLPercent, totalCost, displayCurrency),
+                      _buildHeroCard(
+                        context,
+                        isDark,
+                        totalValue,
+                        dailyChange,
+                        totalCost,
+                        displayCurrency,
+                      ),
                       const SizedBox(height: 14),
-                      _buildStatsStrip(context, isDark, totalPL, totalCost,
-                          assets.length, displayCurrency),
+                      _buildStatsStrip(
+                        context,
+                        isDark,
+                        dailyChange,
+                        totalCost,
+                        assets.length,
+                        displayCurrency,
+                      ),
                     ],
                   ),
                 ),
@@ -87,14 +103,16 @@ class DashboardScreen extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
                     child: _buildAssetsByCategory(
-                        context, merged, displayCurrency),
+                      context,
+                      merged,
+                      displayCurrency,
+                    ),
                   ),
                 ),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
-                  child: _buildRecentCashflows(
-                      context, ref, recentCashflows),
+                  child: _buildRecentCashflows(context, ref, recentCashflows),
                 ),
               ),
               if (nearestGoal != null)
@@ -125,11 +143,12 @@ class DashboardScreen extends ConsumerWidget {
     final greeting = now.hour < 12
         ? 'Günaydın'
         : now.hour < 18
-            ? 'İyi günler'
-            : 'İyi akşamlar';
+        ? 'İyi günler'
+        : 'İyi akşamlar';
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textSecondary =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -153,8 +172,7 @@ class DashboardScreen extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.w800,
-                  color:
-                      isDark ? AppColors.darkText : AppColors.lightText,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
                   letterSpacing: -1.2,
                   height: 1.1,
                 ),
@@ -164,13 +182,11 @@ class DashboardScreen extends ConsumerWidget {
         ),
         // Para birimi chip
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: AppColors.primary.withValues(alpha: isDark ? 0.12 : 0.09),
             borderRadius: BorderRadius.circular(8),
-            border:
-                Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
           ),
           child: Text(
             displayCurrency,
@@ -208,9 +224,8 @@ class DashboardScreen extends ConsumerWidget {
                     size: 20,
                     color: textSecondary,
                   ),
-                  onPressed: () => ref
-                      .read(priceUpdateProvider.notifier)
-                      .updatePrices(),
+                  onPressed: () =>
+                      ref.read(priceUpdateProvider.notifier).updatePrices(),
                 ),
         ),
       ],
@@ -222,13 +237,23 @@ class DashboardScreen extends ConsumerWidget {
     BuildContext context,
     bool isDark,
     double totalValue,
-    double totalPL,
-    double totalPLPercent,
+    DailyPortfolioChange dailyChange,
     double totalCost,
     String displayCurrency,
   ) {
-    final isProfit = totalPL >= 0;
-    final plColor = isProfit ? AppColors.profit : AppColors.loss;
+    final isProfit = dailyChange.isProfit;
+    final plColor = dailyChange.hasSnapshot
+        ? (isProfit ? AppColors.profit : AppColors.loss)
+        : AppColors.gold;
+    final dailyAmountText = dailyChange.hasSnapshot
+        ? dailyChange.formatAmount()
+        : 'İlk kayıt bekleniyor';
+    final dailyMetricText = dailyChange.hasSnapshot
+        ? dailyChange.formatAmount(absolute: true)
+        : 'Bekleniyor';
+    final dailyPercentText = dailyChange.hasSnapshot
+        ? '${isProfit ? '+' : ''}${dailyChange.percent.toStringAsFixed(2)}%'
+        : '--';
 
     return Container(
       width: double.infinity,
@@ -310,26 +335,31 @@ class DashboardScreen extends ConsumerWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: plColor.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: plColor.withValues(alpha: 0.3)),
+                          color: plColor.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            isProfit
-                                ? Icons.arrow_upward_rounded
-                                : Icons.arrow_downward_rounded,
+                            dailyChange.hasSnapshot
+                                ? (isProfit
+                                      ? Icons.arrow_upward_rounded
+                                      : Icons.arrow_downward_rounded)
+                                : Icons.schedule_rounded,
                             color: plColor,
                             size: 12,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${isProfit ? '+' : ''}${totalPLPercent.toStringAsFixed(2)}%',
+                            dailyPercentText,
                             style: TextStyle(
                               color: plColor,
                               fontSize: 12,
@@ -340,32 +370,35 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    Text(
-                      '${isProfit ? '+' : ''}${CurrencyUtils.format(totalPL, displayCurrency)}',
-                      style: TextStyle(
-                        color: plColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                    Flexible(
+                      child: Text(
+                        dailyAmountText,
+                        style: TextStyle(
+                          color: plColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Container(
-                    width: double.infinity,
-                    height: 1,
-                    color: Colors.white.withValues(alpha: 0.1)),
+                  width: double.infinity,
+                  height: 1,
+                  color: Colors.white.withValues(alpha: 0.1),
+                ),
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    _heroStat('Maliyet',
-                        CurrencyUtils.format(totalCost, displayCurrency)),
-                    _heroDivider(),
                     _heroStat(
-                      'Net K/Z',
-                      '${isProfit ? '+' : ''}${CurrencyUtils.format(totalPL.abs(), displayCurrency)}',
-                      color: plColor,
+                      'Maliyet',
+                      CurrencyUtils.format(totalCost, displayCurrency),
                     ),
+                    _heroDivider(),
+                    _heroStat('Bugün', dailyMetricText, color: plColor),
                   ],
                 ),
               ],
@@ -377,49 +410,52 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _heroStat(String label, String value, {Color? color}) => Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.45),
-                fontSize: 10,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              value,
-              style: TextStyle(
-                color: color ?? Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.45),
+            fontSize: 10,
+            letterSpacing: 0.5,
+          ),
         ),
-      );
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: TextStyle(
+            color: color ?? Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    ),
+  );
 
   Widget _heroDivider() => Container(
-        width: 1,
-        height: 30,
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        color: Colors.white.withValues(alpha: 0.12),
-      );
+    width: 1,
+    height: 30,
+    margin: const EdgeInsets.symmetric(horizontal: 16),
+    color: Colors.white.withValues(alpha: 0.12),
+  );
 
   // ─────────────── Stats Strip ───────────────
   Widget _buildStatsStrip(
     BuildContext context,
     bool isDark,
-    double totalPL,
+    DailyPortfolioChange dailyChange,
     double totalCost,
     int assetCount,
     String displayCurrency,
   ) {
-    final isProfit = totalPL >= 0;
+    final isProfit = dailyChange.isProfit;
+    final dailyColor = dailyChange.hasSnapshot
+        ? (isProfit ? AppColors.profit : AppColors.loss)
+        : AppColors.gold;
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
@@ -427,11 +463,16 @@ class DashboardScreen extends ConsumerWidget {
       children: [
         Expanded(
           child: _StatCard(
-            icon: Icons.trending_up_rounded,
-            label: 'Kar / Zarar',
-            value:
-                '${isProfit ? '+' : ''}${CurrencyUtils.format(totalPL, displayCurrency)}',
-            accentColor: isProfit ? AppColors.profit : AppColors.loss,
+            icon: dailyChange.hasSnapshot
+                ? (isProfit
+                      ? Icons.trending_up_rounded
+                      : Icons.trending_down_rounded)
+                : Icons.schedule_rounded,
+            label: 'Bugün',
+            value: dailyChange.hasSnapshot
+                ? dailyChange.formatAmount()
+                : 'Bekleniyor',
+            accentColor: dailyColor,
             bg: bg,
             border: border,
             isDark: isDark,
@@ -469,80 +510,96 @@ class DashboardScreen extends ConsumerWidget {
   static final _categories = [
     // TEFAS: indigo-mor — kurumsal fonlar, istikrar + güven
     const _AssetCategory(
-        'TEFAS', Icons.account_balance_outlined, Color(0xFF7C6AF5)),
+      'TEFAS',
+      Icons.account_balance_outlined,
+      Color(0xFF7C6AF5),
+    ),
     // BEFAS: daha açık mor — uzun vadeli emeklilik, sabır
     const _AssetCategory(
-        'BEFAS', Icons.business_center_outlined, Color(0xFFAA82FA)),
+      'BEFAS',
+      Icons.business_center_outlined,
+      Color(0xFFAA82FA),
+    ),
     // BIST: parlak mavi — borsa dinamizmi, enerji
     const _AssetCategory('BIST', Icons.show_chart_rounded, Color(0xFF2196F3)),
     // Yabancı/ETF: cyan — küresel, teknoloji hissi
     const _AssetCategory(
-        'Yabancı / ETF', Icons.language_rounded, Color(0xFF00C8E0)),
+      'Yabancı / ETF',
+      Icons.language_rounded,
+      Color(0xFF00C8E0),
+    ),
     // Kripto: turuncu-amber — spekülatif, yüksek enerji
     const _AssetCategory(
-        'Kripto', Icons.currency_bitcoin_rounded, Color(0xFFFF8F00)),
+      'Kripto',
+      Icons.currency_bitcoin_rounded,
+      Color(0xFFFF8F00),
+    ),
     // Döviz: taze yeşil — likit, erişilebilir para
     const _AssetCategory(
-        'Döviz', Icons.attach_money_rounded, Color(0xFF00D98F)),
+      'Döviz',
+      Icons.attach_money_rounded,
+      Color(0xFF00D98F),
+    ),
     // Altın/Emtia: canlı altın — kıymetli maden, premium
     const _AssetCategory(
-        'Altın / Emtia', Icons.diamond_outlined, Color(0xFFFFAB00)),
+      'Altın / Emtia',
+      Icons.diamond_outlined,
+      Color(0xFFFFAB00),
+    ),
     // Nakit: açık yeşil — güvenli, likit
     const _AssetCategory(
-        'Nakit', Icons.account_balance_wallet_outlined, Color(0xFF69F0AE)),
+      'Nakit',
+      Icons.account_balance_wallet_outlined,
+      Color(0xFF69F0AE),
+    ),
     // Gayrimenkul: canlı kırmızı — fiziksel varlık, somut
-    const _AssetCategory(
-        'Gayrimenkul', Icons.home_outlined, Color(0xFFFF5252)),
+    const _AssetCategory('Gayrimenkul', Icons.home_outlined, Color(0xFFFF5252)),
   ];
 
   List<AssetModel> _assetsForCategory(
-      String category, List<AssetModel> assets) {
+    String category,
+    List<AssetModel> assets,
+  ) {
     switch (category) {
       case 'TEFAS':
         return assets
-            .where((a) =>
-                a.type == AssetType.fund &&
-                (a.apiSource == 'tefas' ||
-                    a.apiSource == 'finance-api'))
+            .where(
+              (a) =>
+                  a.type == AssetType.fund &&
+                  (a.apiSource == 'tefas' || a.apiSource == 'finance-api'),
+            )
             .toList();
       case 'BEFAS':
         return assets
-            .where((a) =>
-                a.type == AssetType.fund && a.apiSource == 'befas')
+            .where((a) => a.type == AssetType.fund && a.apiSource == 'befas')
             .toList();
       case 'BIST':
         return assets
-            .where((a) =>
-                a.type == AssetType.stock &&
-                (a.apiId?.endsWith('.IS') ?? false))
+            .where(
+              (a) =>
+                  a.type == AssetType.stock &&
+                  (a.apiId?.endsWith('.IS') ?? false),
+            )
             .toList();
       case 'Yabancı / ETF':
         return assets
-            .where((a) =>
-                (a.type == AssetType.stock &&
-                    !(a.apiId?.endsWith('.IS') ?? false)) ||
-                (a.type == AssetType.fund && a.apiSource == 'yahoo'))
+            .where(
+              (a) =>
+                  (a.type == AssetType.stock &&
+                      !(a.apiId?.endsWith('.IS') ?? false)) ||
+                  (a.type == AssetType.fund && a.apiSource == 'yahoo'),
+            )
             .toList();
       case 'Kripto':
-        return assets
-            .where((a) => a.type == AssetType.crypto)
-            .toList();
+        return assets.where((a) => a.type == AssetType.crypto).toList();
       case 'Döviz':
-        return assets
-            .where((a) => a.type == AssetType.currency)
-            .toList();
+        return assets.where((a) => a.type == AssetType.currency).toList();
       case 'Altın / Emtia':
-        return assets
-            .where((a) => a.type == AssetType.commodity)
-            .toList();
+        return assets.where((a) => a.type == AssetType.commodity).toList();
       case 'Nakit':
-        return assets
-            .where((a) => a.type == AssetType.cash)
-            .toList();
+        return assets.where((a) => a.type == AssetType.cash).toList();
       case 'Gayrimenkul':
-        return assets
-            .where((a) => a.type == AssetType.realEstate)
-            .toList();
+        return assets.where((a) => a.type == AssetType.realEstate).toList();
       default:
         return [];
     }
@@ -562,9 +619,9 @@ class DashboardScreen extends ConsumerWidget {
     if (nonEmpty.isEmpty) return const SizedBox.shrink();
 
     final totalVal = nonEmpty.fold(
-        0.0,
-        (s, p) =>
-            s + p.$2.fold(0.0, (sv, a) => sv + a.currentValue));
+      0.0,
+      (s, p) => s + p.$2.fold(0.0, (sv, a) => sv + a.currentValue),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -582,13 +639,13 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.15)),
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                ),
               ),
               child: Text(
                 '${nonEmpty.length} kategori',
@@ -611,8 +668,7 @@ class DashboardScreen extends ConsumerWidget {
               child: Row(
                 children: nonEmpty.map((p) {
                   final pct =
-                      p.$2.fold(0.0, (s, a) => s + a.currentValue) /
-                          totalVal;
+                      p.$2.fold(0.0, (s, a) => s + a.currentValue) / totalVal;
                   return Expanded(
                     flex: (pct * 1000).round().clamp(1, 1000),
                     child: Container(color: p.$1.color),
@@ -626,14 +682,19 @@ class DashboardScreen extends ConsumerWidget {
         ...nonEmpty.asMap().entries.map((entry) {
           final cat = entry.value.$1;
           final catAssets = entry.value.$2;
-          final catTotal =
-              catAssets.fold(0.0, (s, a) => s + a.currentValue);
-          final catPct =
-              totalVal > 0 ? (catTotal / totalVal * 100) : 0.0;
+          final catTotal = catAssets.fold(0.0, (s, a) => s + a.currentValue);
+          final catPct = totalVal > 0 ? (catTotal / totalVal * 100) : 0.0;
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: _buildCategoryTile(context, isDark, cat, catAssets,
-                catTotal, catPct, displayCurrency),
+            child: _buildCategoryTile(
+              context,
+              isDark,
+              cat,
+              catAssets,
+              catTotal,
+              catPct,
+              displayCurrency,
+            ),
           );
         }),
       ],
@@ -650,8 +711,7 @@ class DashboardScreen extends ConsumerWidget {
     String displayCurrency,
   ) {
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final border =
-        isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
@@ -662,8 +722,7 @@ class DashboardScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(18),
         ),
         child: Theme(
-          data: Theme.of(context)
-              .copyWith(dividerColor: Colors.transparent),
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
             tilePadding: const EdgeInsets.fromLTRB(6, 4, 16, 4),
             childrenPadding: EdgeInsets.zero,
@@ -744,8 +803,7 @@ class DashboardScreen extends ConsumerWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
-                    color:
-                        isDark ? AppColors.darkText : AppColors.lightText,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -760,8 +818,15 @@ class DashboardScreen extends ConsumerWidget {
             ),
             children: [
               Divider(height: 1, color: border, indent: 16, endIndent: 16),
-              ...assets.map((a) => _buildAssetRow(
-                  context, isDark, a, cat.color, displayCurrency)),
+              ...assets.map(
+                (a) => _buildAssetRow(
+                  context,
+                  isDark,
+                  a,
+                  cat.color,
+                  displayCurrency,
+                ),
+              ),
               const SizedBox(height: 6),
             ],
           ),
@@ -792,8 +857,7 @@ class DashboardScreen extends ConsumerWidget {
       child: Row(
         children: [
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(7),
@@ -818,9 +882,7 @@ class DashboardScreen extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? AppColors.darkText
-                        : AppColors.lightText,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -845,13 +907,11 @@ class DashboardScreen extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color:
-                      isDark ? AppColors.darkText : AppColors.lightText,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: plColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(5),
@@ -880,8 +940,7 @@ class DashboardScreen extends ConsumerWidget {
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final border =
-        isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -899,9 +958,8 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
             GestureDetector(
-              onTap: () => ref
-                  .read(tabIndexProvider.notifier)
-                  .setTab(_budgetTabIndex),
+              onTap: () =>
+                  ref.read(tabIndexProvider.notifier).setTab(_budgetTabIndex),
               child: Text(
                 'Tümünü gör →',
                 style: TextStyle(
@@ -931,16 +989,16 @@ class DashboardScreen extends ConsumerWidget {
                   children: cashflows.asMap().entries.map((entry) {
                     final i = entry.key;
                     final c = entry.value;
-                    final isDeposit =
-                        c.type == CashFlowType.deposit;
-                    final color =
-                        isDeposit ? AppColors.profit : AppColors.loss;
+                    final isDeposit = c.type == CashFlowType.deposit;
+                    final color = isDeposit ? AppColors.profit : AppColors.loss;
                     final isLast = i == cashflows.length - 1;
                     return Column(
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
                           child: Row(
                             children: [
                               Container(
@@ -966,8 +1024,7 @@ class DashboardScreen extends ConsumerWidget {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       c.title,
@@ -989,8 +1046,7 @@ class DashboardScreen extends ConsumerWidget {
                                         fontSize: 11,
                                         color: isDark
                                             ? AppColors.darkTextSecondary
-                                            : AppColors
-                                                .lightTextSecondary,
+                                            : AppColors.lightTextSecondary,
                                       ),
                                     ),
                                   ],
@@ -1024,21 +1080,15 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   // ─────────────── Goal Card ───────────────
-  Widget _buildGoalCard(
-    BuildContext context,
-    WidgetRef ref,
-    GoalModel goal,
-  ) {
+  Widget _buildGoalCard(BuildContext context, WidgetRef ref, GoalModel goal) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final border =
-        isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
     final progress = goal.targetAmount > 0
         ? (goal.currentAmount / goal.targetAmount).clamp(0.0, 1.0)
         : 0.0;
     final remaining = goal.targetAmount - goal.currentAmount;
-    final daysLeft =
-        goal.targetDate?.difference(DateTime.now()).inDays;
+    final daysLeft = goal.targetDate?.difference(DateTime.now()).inDays;
     final progressPct = (progress * 100).toStringAsFixed(0);
 
     return Column(
@@ -1052,15 +1102,13 @@ class DashboardScreen extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color:
-                    isDark ? AppColors.darkText : AppColors.lightText,
+                color: isDark ? AppColors.darkText : AppColors.lightText,
                 letterSpacing: -0.5,
               ),
             ),
             GestureDetector(
-              onTap: () => ref
-                  .read(tabIndexProvider.notifier)
-                  .setTab(_goalsTabIndex),
+              onTap: () =>
+                  ref.read(tabIndexProvider.notifier).setTab(_goalsTabIndex),
               child: Text(
                 'Tümünü gör →',
                 style: TextStyle(
@@ -1084,8 +1132,7 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Text(goal.emoji,
-                      style: const TextStyle(fontSize: 26)),
+                  Text(goal.emoji, style: const TextStyle(fontSize: 26)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -1103,9 +1150,7 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                         if (daysLeft != null)
                           Text(
-                            daysLeft > 0
-                                ? '$daysLeft gün kaldı'
-                                : 'Süre doldu',
+                            daysLeft > 0 ? '$daysLeft gün kaldı' : 'Süre doldu',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: daysLeft <= 30
@@ -1114,12 +1159,12 @@ class DashboardScreen extends ConsumerWidget {
                               color: daysLeft <= 0
                                   ? AppColors.loss
                                   : daysLeft <= 30
-                                      ? AppColors.loss
-                                      : daysLeft <= 180
-                                          ? AppColors.gold
-                                          : (isDark
-                                              ? AppColors.darkTextSecondary
-                                              : AppColors.lightTextSecondary),
+                                  ? AppColors.loss
+                                  : daysLeft <= 180
+                                  ? AppColors.gold
+                                  : (isDark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.lightTextSecondary),
                             ),
                           ),
                       ],
@@ -1131,8 +1176,7 @@ class DashboardScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color:
-                            AppColors.primary.withValues(alpha: 0.15),
+                        color: AppColors.primary.withValues(alpha: 0.15),
                         width: 4,
                       ),
                     ),
@@ -1155,8 +1199,7 @@ class DashboardScreen extends ConsumerWidget {
                   Container(
                     height: 5,
                     decoration: BoxDecoration(
-                      color:
-                          AppColors.primary.withValues(alpha: 0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                   ),
@@ -1166,10 +1209,7 @@ class DashboardScreen extends ConsumerWidget {
                       height: 5,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [
-                            AppColors.primary,
-                            Color(0xFF06E8B8)
-                          ],
+                          colors: [AppColors.primary, Color(0xFF06E8B8)],
                         ),
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -1186,9 +1226,7 @@ class DashboardScreen extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: isDark
-                          ? AppColors.darkText
-                          : AppColors.lightText,
+                      color: isDark ? AppColors.darkText : AppColors.lightText,
                     ),
                   ),
                   Text(
@@ -1218,13 +1256,13 @@ class DashboardScreen extends ConsumerWidget {
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding:
-          const EdgeInsets.symmetric(vertical: 30, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 16),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
       ),
       child: Center(
         child: Column(
@@ -1232,10 +1270,11 @@ class DashboardScreen extends ConsumerWidget {
             Icon(
               icon,
               size: 32,
-              color: (isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.lightTextSecondary)
-                  .withValues(alpha: 0.4),
+              color:
+                  (isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary)
+                      .withValues(alpha: 0.4),
             ),
             const SizedBox(height: 10),
             Text(
@@ -1243,9 +1282,7 @@ class DashboardScreen extends ConsumerWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
-                color: isDark
-                    ? AppColors.darkText
-                    : AppColors.lightText,
+                color: isDark ? AppColors.darkText : AppColors.lightText,
               ),
             ),
             const SizedBox(height: 4),
@@ -1291,10 +1328,7 @@ class _StatCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 13),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            accentColor.withValues(alpha: 0.09),
-            bg,
-          ],
+          colors: [accentColor.withValues(alpha: 0.09), bg],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

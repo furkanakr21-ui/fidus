@@ -48,6 +48,7 @@ from cron.job
 where jobname in (
   -- Eski görevler
   'update-prices-15min',
+  'record-portfolio-snapshots-daily',
   'update-tefas-funds-hourly',
   'update-asset-metadata-daily',
   'update-tefas-hourly',
@@ -105,8 +106,20 @@ select cron.schedule(
   $cron$
 );
 
+-- Portföy büyüklüğü snapshot'ları — her gece 21:05 UTC (00:05 TR)
+-- 00:00 fiyat cron'u ile aynı anda başlamasın diye 5 dakika geciktirilir.
+select cron.schedule(
+  'record-portfolio-snapshots-daily',
+  '5 21 * * *',
+  $cron$
+  select public.record_portfolio_value_snapshots(
+    ((now() at time zone 'Europe/Istanbul')::date)
+  );
+  $cron$
+);
+
 -- ─────────────────────────────────────────────────────────────
--- 4. Doğrulama — beklenen 2 aktif Supabase cron görevi
+-- 4. Doğrulama — beklenen 3 aktif Supabase cron görevi
 -- TEFAS worker Supabase cron.job içinde görünmez; dış scheduler'da izlenir.
 -- ─────────────────────────────────────────────────────────────
 select jobname, schedule, active
