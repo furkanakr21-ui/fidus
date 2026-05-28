@@ -19,10 +19,11 @@ fund data from Supabase and never call external fund endpoints directly.
 - `TEFAS_SKIP_VALIDATION` optional smoke-test bypass; keep unset for production
 - `TEFAS_DRY_RUN` set to `true` to fetch and validate without publishing
 
-The worker warms up each TEFAS session before POST requests, validates family
-counts/sentinel funds/positive price coverage, and marks rows missing from the
-latest successful run inactive. Missing or zero prices are never published as
-current prices.
+The worker warms up each TEFAS session before POST requests and rejects only
+technical failures such as empty/invalid TEFAS responses or duplicate codes in
+the same TEFAS/BEFAS bucket. Publishing is incremental: rows returned by TEFAS
+are upserted, rows missing from the current run are left unchanged, and missing
+or zero prices never overwrite the last known valid price.
 
 ## Run
 

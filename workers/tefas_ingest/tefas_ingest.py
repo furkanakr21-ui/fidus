@@ -396,22 +396,18 @@ def validate_rows(rows_by_family: dict[str, list[dict[str, Any]]]) -> None:
     errors: list[str] = []
     tefas_codes: dict[str, str] = {}
     befas_codes: dict[str, str] = {}
+    total_rows = sum(len(rows) for rows in rows_by_family.values())
 
-    for family in FAMILIES:
-        rows = rows_by_family.get(family.code, [])
+    if total_rows == 0:
+        raise RuntimeError("No fund rows returned from TEFAS")
+
+    families_by_code = {family.code: family for family in FAMILIES}
+    for family_code, rows in rows_by_family.items():
+        family = families_by_code.get(family_code)
+        if family is None:
+            errors.append(f"unknown family: {family_code}")
+            continue
         codes = {row["code"] for row in rows}
-        if len(rows) < family.min_count:
-            errors.append(f"{family.code}: count {len(rows)} below minimum {family.min_count}")
-        positive_price_count = sum(1 for row in rows if row.get("price") is not None and row["price"] > 0)
-        min_prices = int(len(rows) * family.min_price_ratio)
-        if len(rows) > 0 and positive_price_count < min_prices:
-            errors.append(
-                f"{family.code}: positive price coverage {positive_price_count}/{len(rows)} "
-                f"below {family.min_price_ratio:.0%}"
-            )
-        missing = [code for code in family.sentinels if code not in codes]
-        if missing:
-            errors.append(f"{family.code}: missing sentinel {', '.join(missing)}")
 
         bucket = befas_codes if family.is_befas else tefas_codes
         for code in codes:
@@ -559,6 +555,18 @@ def publish(
     rows: list[dict[str, Any]],
     now_iso: str,
 ) -> None:
+    fund_rows_with_price: list[dict[str, Any]] = []
+    fund_rows_without_price: list[dict[str, Any]] = []
+
+    for row in rows:
+        if row.get("price") is not None and row["price"] > 0:
+            fund_rows_with_price.append(row)
+            continue
+        clean_row = dict(row)
+        clean_row.pop("price", None)
+        clean_row.pop("price_date", None)
+        fund_rows_without_price.append(clean_row)
+
     prices = [
         {
             "symbol": row["code"],
@@ -570,19 +578,9 @@ def publish(
         for row in rows
         if row.get("price") is not None and row["price"] > 0
     ]
-    db.upsert("tefas_funds", rows, "code,is_befas")
+    db.upsert("tefas_funds", fund_rows_with_price, "code,is_befas")
+    db.upsert("tefas_funds", fund_rows_without_price, "code,is_befas")
     db.upsert("prices", prices, "symbol,api_source")
-    for is_befas in (False, True):
-        db.patch(
-            "tefas_funds",
-            {"is_befas": f"eq.{str(is_befas).lower()}", "last_seen_at": f"lt.{now_iso}"},
-            {"is_active": False, "price": None, "updated_at": now_iso},
-        )
-        db.patch(
-            "tefas_funds",
-            {"is_befas": f"eq.{str(is_befas).lower()}", "last_seen_at": "is.null"},
-            {"is_active": False, "price": None, "updated_at": now_iso},
-        )
 
 
 def main() -> int:
