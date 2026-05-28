@@ -8,43 +8,22 @@ import '../../shared/providers.dart';
 import '../../shared/services/asset_service.dart';
 import '../../shared/services/transaction_service.dart';
 
-class AddSellSheet extends ConsumerStatefulWidget {
-  final String symbol;
-  final String assetName;
-  final double totalQuantity;
-  final double? currentPrice;
-  final String currency;
+class AddBuySheet extends ConsumerStatefulWidget {
+  final AssetModel mergedAsset;
 
-  const AddSellSheet({
-    super.key,
-    required this.symbol,
-    required this.assetName,
-    required this.totalQuantity,
-    this.currentPrice,
-    required this.currency,
-  });
+  const AddBuySheet({super.key, required this.mergedAsset});
 
   @override
-  ConsumerState<AddSellSheet> createState() => _AddSellSheetState();
+  ConsumerState<AddBuySheet> createState() => _AddBuySheetState();
 }
 
-class _AddSellSheetState extends ConsumerState<AddSellSheet> {
+class _AddBuySheetState extends ConsumerState<AddBuySheet> {
   final _quantityController = TextEditingController();
   final _priceController = TextEditingController();
   final _commissionController = TextEditingController();
   final _noteController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   bool _isSaving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.currentPrice != null) {
-      _priceController.text = widget.currentPrice!.toStringAsFixed(
-        widget.currentPrice! < 1 ? 6 : 2,
-      );
-    }
-  }
 
   @override
   void dispose() {
@@ -61,11 +40,10 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
       double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0;
   double get _enteredCommission =>
       double.tryParse(_commissionController.text.replaceAll(',', '.')) ?? 0;
-  double get _totalProceeds =>
-      (_enteredQty * _enteredPrice) - _enteredCommission;
+  double get _totalCost => (_enteredQty * _enteredPrice) + _enteredCommission;
 
   String get _currencySymbol {
-    switch (widget.currency) {
+    switch (widget.mergedAsset.currency) {
       case 'USD':
         return '\$';
       case 'EUR':
@@ -80,58 +58,57 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
     final price = _enteredPrice;
 
     if (qty <= 0) {
-      _showError('Satış miktarı 0\'dan büyük olmalı');
-      return;
-    }
-    if (qty > widget.totalQuantity) {
-      _showError(
-        'Elinizdeki miktardan (${_formatQty(widget.totalQuantity)}) fazla satış yapılamaz',
-      );
+      _showError('Miktar 0\'dan büyük olmalı');
       return;
     }
     if (price <= 0) {
-      _showError('Satış fiyatı 0\'dan büyük olmalı');
+      _showError('Alış fiyatı 0\'dan büyük olmalı');
       return;
     }
 
     setState(() => _isSaving = true);
 
     try {
-      final portfolioId = ref.read(activePortfolioProvider);
-
-      // Lotları önce çek — assetId için ve FIFO'da tekrar DB çağrısı yapmamak için
-      final lots = await _fetchSortedLots(portfolioId);
-      if (lots.isEmpty) {
-        setState(() => _isSaving = false);
-        _showError('Satılacak lot bulunamadı');
-        return;
-      }
-
-      final sellTx = TransactionModel(
+      final newLot = AssetModel(
         id: '',
-        assetId: lots.first.id,
-        type: TransactionType.sell,
+        portfolioId: widget.mergedAsset.portfolioId,
+        name: widget.mergedAsset.name,
+        symbol: widget.mergedAsset.symbol,
+        type: widget.mergedAsset.type,
+        quantity: qty,
+        buyPrice: price,
+        buyDate: _selectedDate,
+        commission: _enteredCommission > 0 ? _enteredCommission : null,
+        note: _noteController.text.isEmpty ? null : _noteController.text,
+        currency: widget.mergedAsset.currency,
+        apiSource: widget.mergedAsset.apiSource,
+        apiId: widget.mergedAsset.apiId,
+      );
+
+      final saved = await AssetService.save(newLot);
+
+      final buyTx = TransactionModel(
+        id: '',
+        assetId: saved.id,
+        type: TransactionType.buy,
         quantity: qty,
         price: price,
         commission: _enteredCommission > 0 ? _enteredCommission : null,
         date: _selectedDate,
         note: _noteController.text.isEmpty ? null : _noteController.text,
-        symbol: widget.symbol,
-        assetName: widget.assetName,
+        symbol: widget.mergedAsset.symbol,
+        assetName: widget.mergedAsset.name,
       );
-      await TransactionService.save(sellTx);
+      await TransactionService.save(buyTx);
 
-      // FIFO: en eski lotlardan başlayarak miktarı düş
-      await _applyFifo(qty, lots);
-
-      ref.read(transactionsProvider.notifier).load();
       ref.read(assetsProvider.notifier).load();
+      ref.read(transactionsProvider.notifier).load();
 
       if (mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${widget.symbol} satışı kaydedildi'),
+            content: Text('${widget.mergedAsset.symbol} alışı kaydedildi'),
             backgroundColor: AppColors.profit,
           ),
         );
@@ -142,43 +119,17 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
     }
   }
 
-  Future<List<AssetModel>> _fetchSortedLots(String portfolioId) async {
-    final all = await AssetService.getByPortfolio(portfolioId);
-    return all.where((a) => a.symbol == widget.symbol).toList()
-      ..sort((a, b) => a.buyDate.compareTo(b.buyDate));
-  }
-
-  Future<void> _applyFifo(double sellQty, List<AssetModel> lots) async {
-    double remaining = sellQty;
-    for (final lot in lots) {
-      if (remaining <= 0) break;
-      if (lot.quantity <= remaining) {
-        remaining -= lot.quantity;
-        await AssetService.delete(lot.id);
-      } else {
-        await AssetService.update(
-          lot.copyWith(quantity: lot.quantity - remaining),
-        );
-        remaining = 0;
-      }
-    }
-  }
-
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: AppColors.loss),
     );
   }
 
-  String _formatQty(double qty) {
-    return qty == qty.truncateToDouble()
-        ? qty.toStringAsFixed(0)
-        : qty.toStringAsFixed(4).replaceAll(RegExp(r'0+$'), '');
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final asset = widget.mergedAsset;
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -191,7 +142,6 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle
             Container(
               margin: const EdgeInsets.only(top: 12),
               width: 40,
@@ -201,7 +151,6 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
@@ -210,12 +159,12 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: AppColors.loss.withValues(alpha: 0.12),
+                      color: AppColors.profit.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
-                      Icons.trending_down_rounded,
-                      color: AppColors.loss,
+                      Icons.trending_up_rounded,
+                      color: AppColors.profit,
                       size: 20,
                     ),
                   ),
@@ -225,18 +174,20 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Satış Kaydet — ${widget.symbol}',
+                          'Alış Ekle — ${asset.symbol}',
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
                           ),
                         ),
                         Text(
-                          'Eldeki miktar: ${_formatQty(widget.totalQuantity)} · FIFO uygulanır',
+                          asset.name,
                           style: TextStyle(
                             fontSize: 11,
                             color: theme.textTheme.bodySmall?.color,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -257,8 +208,8 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
                         Expanded(
                           child: _buildField(
                             controller: _quantityController,
-                            label: 'Satış Miktarı',
-                            hint: _formatQty(widget.totalQuantity),
+                            label: 'Miktar',
+                            hint: '0',
                             isNumber: true,
                           ),
                         ),
@@ -266,7 +217,7 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
                         Expanded(
                           child: _buildField(
                             controller: _priceController,
-                            label: 'Satış Fiyatı ($_currencySymbol)',
+                            label: 'Alış Fiyatı ($_currencySymbol)',
                             hint: '0,00',
                             isNumber: true,
                           ),
@@ -292,26 +243,25 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
                     _buildField(
                       controller: _noteController,
                       label: 'Not (opsiyonel)',
-                      hint: 'Bu satış hakkında bir not...',
+                      hint: 'Bu alış hakkında bir not...',
                       maxLines: 2,
                     ),
                     const SizedBox(height: 16),
-                    // Özet
                     if (_enteredQty > 0 && _enteredPrice > 0)
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: AppColors.loss.withValues(alpha: 0.07),
+                          color: AppColors.profit.withValues(alpha: 0.07),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: AppColors.loss.withValues(alpha: 0.2),
+                            color: AppColors.profit.withValues(alpha: 0.2),
                           ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Tahmini Gelir',
+                              'Toplam Maliyet',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
@@ -319,11 +269,11 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
                               ),
                             ),
                             Text(
-                              '$_currencySymbol${_totalProceeds.toStringAsFixed(2)}',
+                              '$_currencySymbol${_totalCost.toStringAsFixed(2)}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 18,
-                                color: AppColors.loss,
+                                color: AppColors.profit,
                               ),
                             ),
                           ],
@@ -335,7 +285,7 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _save,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.loss,
+                          backgroundColor: AppColors.profit,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -352,7 +302,7 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
                                 ),
                               )
                             : const Text(
-                                'Satışı Kaydet',
+                                'Alışı Kaydet',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 15,
@@ -397,7 +347,7 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.loss, width: 2),
+          borderSide: const BorderSide(color: AppColors.profit, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
@@ -429,7 +379,7 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
             const Icon(
               Icons.calendar_today_outlined,
               size: 16,
-              color: AppColors.loss,
+              color: AppColors.profit,
             ),
             const SizedBox(width: 8),
             Column(

@@ -192,17 +192,7 @@ class _TefasBrowserScreenState extends State<TefasBrowserScreen>
       _befasSearchResults = null;
       _tefasSearchCtrl.clear();
       _befasSearchCtrl.clear();
-      // forceRefresh süresince de loading göster
-      _tefasLoading = true;
-      _befasLoading = true;
     });
-    await TefasService.forceRefresh();
-    if (!mounted) return;
-    setState(() {
-      _tefasLoading = false;
-      _befasLoading = false;
-    });
-    // Her iki tab'ı da yenile
     await Future.wait([_loadTefas(), _loadBefas()]);
   }
 
@@ -219,9 +209,7 @@ class _TefasBrowserScreenState extends State<TefasBrowserScreen>
           Navigator.pop(context);
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const AddAssetScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const AddAssetScreen()),
           );
         },
       ),
@@ -269,7 +257,6 @@ class _TefasBrowserScreenState extends State<TefasBrowserScreen>
             isBefas: false,
             onSearch: _searchTefas,
             onTap: _openDetail,
-            syncError: TefasService.lastError,
             sortBy: _tefasSortBy,
             onSortChanged: _changeTefasSort,
             showSortBar: _tefasSearchResults == null,
@@ -285,7 +272,6 @@ class _TefasBrowserScreenState extends State<TefasBrowserScreen>
             isBefas: true,
             onSearch: _searchBefas,
             onTap: _openDetail,
-            syncError: TefasService.lastError,
             sortBy: _befasSortBy,
             onSortChanged: _changeBefasSort,
             showSortBar: _befasSearchResults == null,
@@ -309,7 +295,6 @@ class _FundList extends StatelessWidget {
   final bool isBefas;
   final ValueChanged<String> onSearch;
   final ValueChanged<TefasFund> onTap;
-  final String? syncError;
   final FundSortOption sortBy;
   final ValueChanged<FundSortOption> onSortChanged;
   final bool showSortBar;
@@ -325,7 +310,6 @@ class _FundList extends StatelessWidget {
     required this.isBefas,
     required this.onSearch,
     required this.onTap,
-    this.syncError,
     this.sortBy = FundSortOption.nameAsc,
     required this.onSortChanged,
     this.showSortBar = true,
@@ -365,65 +349,34 @@ class _FundList extends StatelessWidget {
 
         // Sıralama Çubuğu
         if (showSortBar)
-          _SortBar(
-            current: sortBy,
-            color: color,
-            onChanged: onSortChanged,
-          ),
-
-        // Hata Mesajı
-        if (syncError != null && funds.isEmpty && !isLoading)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline, color: Colors.red, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      syncError!,
-                      style: const TextStyle(fontSize: 12, color: Colors.red),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _SortBar(current: sortBy, color: color, onChanged: onSortChanged),
 
         // Liste
         Expanded(
           child: isLoading && funds.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : isSearching
-                  ? const Center(child: CircularProgressIndicator())
-                  : funds.isEmpty
-                      ? _EmptyState(isBefas: isBefas)
-                      : ListView.builder(
-                          controller: scrollCtrl,
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                          itemCount: funds.length + (hasMore ? 1 : 0),
-                          itemBuilder: (ctx, i) {
-                            if (i == funds.length) {
-                              return const Padding(
-                                padding: EdgeInsets.all(16),
-                                child: Center(
-                                    child: CircularProgressIndicator()),
-                              );
-                            }
-                            return _FundCard(
-                              fund: funds[i],
-                              color: color,
-                              onTap: () => onTap(funds[i]),
-                            );
-                          },
-                        ),
+              ? const Center(child: CircularProgressIndicator())
+              : funds.isEmpty
+              ? _EmptyState(isBefas: isBefas)
+              : ListView.builder(
+                  controller: scrollCtrl,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  itemCount: funds.length + (hasMore ? 1 : 0),
+                  itemBuilder: (ctx, i) {
+                    if (i == funds.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    return _FundCard(
+                      fund: funds[i],
+                      color: color,
+                      onTap: () => onTap(funds[i]),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -454,11 +407,13 @@ class _FundCard extends StatelessWidget {
     final mainLabel = ret1m != null
         ? '1 Ay'
         : retYtd != null
-            ? 'YBB'
-            : '1 Yıl';
+        ? 'YBB'
+        : '1 Yıl';
 
     final positive = (mainRet ?? 0) >= 0;
-    final retColor = positive ? const Color(0xFF00C853) : const Color(0xFFFF1744);
+    final retColor = positive
+        ? const Color(0xFF00C853)
+        : const Color(0xFFFF1744);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -472,8 +427,7 @@ class _FundCard extends StatelessWidget {
             children: [
               // Fon Kodu Rozeti
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(8),
@@ -509,10 +463,7 @@ class _FundCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         fund.category ?? fund.type ?? '',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[500],
-                        ),
+                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -529,7 +480,9 @@ class _FundCard extends StatelessWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: retColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
@@ -551,8 +504,11 @@ class _FundCard extends StatelessWidget {
                   ],
                 )
               else
-                const Icon(Icons.chevron_right_rounded,
-                    color: Colors.grey, size: 20),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.grey,
+                  size: 20,
+                ),
             ],
           ),
         ),
@@ -600,7 +556,9 @@ class _SortBar extends StatelessWidget {
               duration: const Duration(milliseconds: 150),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: selected ? color.withValues(alpha: 0.12) : Colors.transparent,
+                color: selected
+                    ? color.withValues(alpha: 0.12)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: selected ? color : Colors.grey.withValues(alpha: 0.35),
@@ -647,8 +605,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               isBefas ? 'BEFAS fonu bulunamadı' : 'TEFAS fonu bulunamadı',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w600, fontSize: 15),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
             ),
             const SizedBox(height: 8),
             Text(

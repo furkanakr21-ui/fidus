@@ -8,6 +8,7 @@ import '../../shared/models/tefas_fund_model.dart';
 import '../../shared/providers.dart';
 import '../../shared/models/transaction_model.dart';
 import '../../shared/services/search_service.dart';
+import '../../shared/services/supabase_service.dart';
 import '../../shared/services/tefas_service.dart';
 import '../../shared/services/asset_service.dart';
 import '../../shared/services/transaction_service.dart';
@@ -38,6 +39,10 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
   List<SearchResult> _searchResults = [];
   bool _isSearching = false;
   bool _isCustom = false;
+
+  // Döviz — DB'den dinamik yüklenmiş liste
+  List<AssetInfo> _dynamicCurrencies = [];
+  bool _isLoadingCurrencies = false;
 
   // TEFAS / BEFAS fon browser
   List<TefasFund> _tefasFunds = [];
@@ -72,6 +77,7 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    Future.microtask(_loadCurrencies);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {
@@ -92,6 +98,8 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
           _loadTefasFunds();
         } else if (_currentKey == 'befas' && _befasFunds.isEmpty) {
           _loadBefasFunds();
+        } else if (_currentKey == 'currency' && _dynamicCurrencies.isEmpty) {
+          _loadCurrencies();
         }
       }
     });
@@ -269,6 +277,44 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
     });
   }
 
+  // ──────────────────── Döviz Yükleme ────────────────────
+
+  Future<void> _loadCurrencies() async {
+    if (_isLoadingCurrencies) return;
+    setState(() => _isLoadingCurrencies = true);
+    try {
+      final data = await supabase
+          .from('exchange_rates')
+          .select('currency')
+          .order('currency', ascending: true);
+      final codes = (data as List)
+          .map((r) => r['currency'] as String)
+          .where((c) => c != 'TRY')
+          .toList();
+      if (!mounted) return;
+      if (codes.isNotEmpty) {
+        setState(() {
+          _dynamicCurrencies = codes
+              .map(AssetList.currencyToAssetInfo)
+              .toList();
+        });
+      } else {
+        setState(() {
+          _dynamicCurrencies = AssetList.currencies;
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _dynamicCurrencies = AssetList.currencies;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingCurrencies = false);
+      }
+    }
+  }
+
   // ──────────────────── TEFAS/BEFAS Fon Browser ────────────────────
 
   Future<void> _loadTefasFunds({bool loadMore = false}) async {
@@ -416,7 +462,10 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
 
     // Fiyat listeden gelmediyse API'den çek
     if (fund.price == null || fund.price! <= 0) {
-      final price = await TefasService.getFundCurrentPrice(fund.code);
+      final price = await TefasService.getFundCurrentPrice(
+        fund.code,
+        isBefas: fund.isBefas,
+      );
       if (!mounted) return;
       setState(() {
         _isFetchingFundPrice = false;
@@ -630,8 +679,8 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
                 _currentKey == 'bist'
                     ? 'Popüler BIST Hisseleri'
                     : _currentKey == 'foreign'
-                        ? 'Popüler Hisse & ETF'
-                        : 'Popüler Kripto Paralar',
+                    ? 'Popüler Hisse & ETF'
+                    : 'Popüler Kripto Paralar',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -792,9 +841,17 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
                 const SizedBox(width: 6),
                 _buildSortChip('Fiyat ↓', FundSortOption.priceDesc, isBefas),
                 const SizedBox(width: 6),
-                _buildSortChip('1Y Getiri ↓', FundSortOption.return1YearDesc, isBefas),
+                _buildSortChip(
+                  '1Y Getiri ↓',
+                  FundSortOption.return1YearDesc,
+                  isBefas,
+                ),
                 const SizedBox(width: 6),
-                _buildSortChip('Büyüklük ↓', FundSortOption.totalSizeDesc, isBefas),
+                _buildSortChip(
+                  'Büyüklük ↓',
+                  FundSortOption.totalSizeDesc,
+                  isBefas,
+                ),
               ],
             ),
           ),
@@ -970,9 +1027,7 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
               : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected
-                ? _typeColor
-                : Theme.of(context).dividerColor,
+            color: isSelected ? _typeColor : Theme.of(context).dividerColor,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -1114,15 +1169,39 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
   // ──────────────────── Döviz/Emtia Listesi ────────────────────
 
   Widget _buildPredefinedList(BuildContext context) {
-    final list = AssetList.getPopular(_currentKey);
+    final List<AssetInfo> list;
+    if (_currentKey == 'currency') {
+      if (_isLoadingCurrencies) {
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
+      list = _dynamicCurrencies.isNotEmpty
+          ? _dynamicCurrencies
+          : AssetList.currencies;
+    } else {
+      list = AssetList.getPopular(_currentKey);
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Seç',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Seç',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            Text(
+              '${list.length} ${_currentKey == 'currency' ? 'döviz' : 'emtia'}',
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         ...list.map(
@@ -1271,7 +1350,9 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
             _buildTextField(
               _customNameController,
               _isCashTab ? 'Açıklama (opsiyonel)' : 'Varlık Adı',
-              _isCashTab ? 'örn. Vadesiz Hesap, Nakit' : 'örn. Türk Hava Yolları',
+              _isCashTab
+                  ? 'örn. Vadesiz Hesap, Nakit'
+                  : 'örn. Türk Hava Yolları',
               required: !_isCashTab,
             ),
           ],
@@ -1334,7 +1415,8 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
                                     width: 16,
                                     height: 16,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2),
+                                      strokeWidth: 2,
+                                    ),
                                   ),
                                 )
                               : null,
@@ -1559,7 +1641,9 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
       return;
     }
 
-    final rawName = isManual ? _customNameController.text : _selectedAsset!.name;
+    final rawName = isManual
+        ? _customNameController.text
+        : _selectedAsset!.name;
     final name = (_isCashTab && rawName.isEmpty) ? 'Nakit' : rawName;
     // Nakit için sembol boş bırakılırsa 'NAKİT' varsayılan değeri kullan.
     final rawSymbol = isManual

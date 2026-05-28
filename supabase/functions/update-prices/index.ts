@@ -14,17 +14,16 @@ const YAHOO_UA =
 // 1. Döviz Kurları
 // ─────────────────────────────────────────────────────────────
 
-async function updateExchangeRatesIfStale(): Promise<Map<string, number>> {
-  const { data } = await supabase
+async function updateExchangeRates(): Promise<Map<string, number>> {
+  const { data: latest } = await supabase
     .from("exchange_rates")
     .select("currency,rate_per_usd,updated_at")
     .limit(1)
     .maybeSingle();
 
-  if (data?.updated_at) {
-    const ageMs = Date.now() - new Date(data.updated_at).getTime();
-    if (ageMs < 55 * 60 * 1000) {
-      console.log("Döviz kurları güncel, sadece okunuyor");
+  if (latest?.updated_at) {
+    const ageMs = Date.now() - new Date(latest.updated_at).getTime();
+    if (ageMs < 30 * 60 * 1000) {
       const { data: all } = await supabase.from("exchange_rates").select("currency,rate_per_usd");
       const map = new Map<string, number>();
       for (const r of (all ?? [])) map.set(r.currency, r.rate_per_usd);
@@ -291,12 +290,20 @@ async function updateCurrencyPrices(rates: Map<string, number>) {
 // 6. Emtia — altın/gümüş/platin Yahoo Finance futures
 // ─────────────────────────────────────────────────────────────
 
-// apiId → Yahoo ticker ve gram katsayısı (1 troy ons = 31.1035 gram)
+// apiId → Yahoo ticker.
+// gramsPerUnit tanımlı  → TRY cinsinden gram/sikke fiyatı (Flutter'da currency='TRY')
+// gramsPerUnit tanımsız → USD cinsinden ons fiyatı      (Flutter'da currency='USD')
 const COMMODITY_MAP: Record<string, { yahooTicker: string; gramsPerUnit?: number }> = {
-  "XAU": { yahooTicker: "GC=F" },
+  // TRY gram/sikke fiyatları
+  "XAU_GRAM":   { yahooTicker: "GC=F", gramsPerUnit: 1 },
   "XAU_CEYREK": { yahooTicker: "GC=F", gramsPerUnit: 1.75 },
-  "XAU_YARIM": { yahooTicker: "GC=F", gramsPerUnit: 3.5 },
-  "XAU_TAM": { yahooTicker: "GC=F", gramsPerUnit: 7.0 },
+  "XAU_YARIM":  { yahooTicker: "GC=F", gramsPerUnit: 3.5 },
+  "XAU_TAM":    { yahooTicker: "GC=F", gramsPerUnit: 7.0 },
+  "XAG_GRAM":   { yahooTicker: "SI=F", gramsPerUnit: 1 },
+  "XPT_GRAM":   { yahooTicker: "PL=F", gramsPerUnit: 1 },
+  "XPD_GRAM":   { yahooTicker: "PA=F", gramsPerUnit: 1 },
+  // USD ons fiyatları
+  "XAU": { yahooTicker: "GC=F" },
   "XAG": { yahooTicker: "SI=F" },
   "XPT": { yahooTicker: "PL=F" },
   "XPD": { yahooTicker: "PA=F" },
@@ -324,7 +331,7 @@ async function updateCommodityPrices(rates: Map<string, number>) {
     if (result) {
       const usdPrice = result.currency.toUpperCase() === "USD"
         ? result.price
-        : result.price / (rates.get(result.currency.toUpperCase()) ?? 1) ;
+        : result.price / (rates.get(result.currency.toUpperCase()) ?? 1);
       tickerCache.set(ticker!, usdPrice);
       console.log(`${ticker}: ${usdPrice} USD/ons`);
     }
@@ -345,25 +352,30 @@ async function updateCommodityPrices(rates: Map<string, number>) {
     const ouncePriceUsd = tickerCache.get(mapping.yahooTicker) ?? 0;
     if (ouncePriceUsd <= 0) continue;
 
-    let priceTry: number;
-    if (mapping.gramsPerUnit) {
-      // Türk altın sikkeleri — gram bazlı, TRY cinsinden
+    if (mapping.gramsPerUnit !== undefined) {
+      // TRY gram/sikke fiyatı — Flutter'da currency='TRY', currentValue direkt kullanır
       const gramPriceTry = (ouncePriceUsd / TROY_OZ_TO_GRAM) * usdToTry;
-      priceTry = gramPriceTry * mapping.gramsPerUnit;
+      const price = gramPriceTry * mapping.gramsPerUnit;
+      if (price > 0) {
+        upserts.push({
+          symbol: id,
+          api_source: "goldapi",
+          price,
+          price_currency: "TRY",
+          updated_at: new Date().toISOString(),
+        });
+        console.log(`${id}: ${price.toFixed(2)} TRY`);
+      }
     } else {
-      // Saf ons — XAU, XAG, XPT, XPD: ons USD fiyatını TRY'ye çevir
-      priceTry = ouncePriceUsd * usdToTry;
-    }
-
-    if (priceTry > 0) {
+      // USD ons fiyatı — Flutter'da currency='USD', currentValue usdToTry ile çarpar
       upserts.push({
         symbol: id,
         api_source: "goldapi",
-        price: priceTry,
-        price_currency: "TRY",
+        price: ouncePriceUsd,
+        price_currency: "USD",
         updated_at: new Date().toISOString(),
       });
-      console.log(`${id}: ${priceTry.toFixed(2)} TRY`);
+      console.log(`${id}: ${ouncePriceUsd.toFixed(4)} USD`);
     }
   }
 
@@ -382,7 +394,7 @@ async function updateCommodityPrices(rates: Map<string, number>) {
 
 Deno.serve(async (_req) => {
   try {
-    const rates = await updateExchangeRatesIfStale();
+    const rates = await updateExchangeRates();
 
     await Promise.all([
       updateCryptoPrices(),

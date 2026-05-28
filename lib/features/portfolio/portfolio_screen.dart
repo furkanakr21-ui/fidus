@@ -4,8 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../shared/models/asset_model.dart';
 import '../../shared/providers.dart';
 import '../../shared/utils/currency_utils.dart';
-import 'asset_detail_screen.dart';
-import 'edit_asset_screen.dart';
+import 'position_sheet.dart';
 
 class PortfolioScreen extends ConsumerStatefulWidget {
   const PortfolioScreen({super.key});
@@ -64,27 +63,28 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
         return assets;
       case 3:
         return assets
-            .where((a) =>
-                a.type == AssetType.currency ||
-                a.type == AssetType.commodity)
+            .where(
+              (a) =>
+                  a.type == AssetType.currency || a.type == AssetType.commodity,
+            )
             .toList();
       case 4:
         return assets
-            .where((a) =>
-                a.type == AssetType.fund &&
-                (a.apiSource == 'tefas' ||
-                    a.apiSource == 'finance-api'))
+            .where(
+              (a) =>
+                  a.type == AssetType.fund &&
+                  (a.apiSource == 'tefas' || a.apiSource == 'finance-api'),
+            )
             .toList();
       case 5:
         return assets
-            .where((a) =>
-                a.type == AssetType.fund && a.apiSource == 'befas')
+            .where((a) => a.type == AssetType.fund && a.apiSource == 'befas')
             .toList();
       case 6:
         return assets
-            .where((a) =>
-                a.type == AssetType.cash ||
-                a.type == AssetType.realEstate)
+            .where(
+              (a) => a.type == AssetType.cash || a.type == AssetType.realEstate,
+            )
             .toList();
       default:
         final typeMap = {1: AssetType.stock, 2: AssetType.crypto};
@@ -100,8 +100,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
       case _SortOption.valueDesc:
         list.sort((a, b) => b.currentValue.compareTo(a.currentValue));
       case _SortOption.plDesc:
-        list.sort((a, b) =>
-            b.profitLossPercent.compareTo(a.profitLossPercent));
+        list.sort((a, b) => b.profitLossPercent.compareTo(a.profitLossPercent));
       case _SortOption.nameAsc:
         list.sort((a, b) => a.name.compareTo(b.name));
     }
@@ -152,30 +151,30 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   }
 
   List<int> _filterCounts(List<AssetModel> merged) => [
-        merged.length,
-        merged.where((a) => a.type == AssetType.stock).length,
-        merged.where((a) => a.type == AssetType.crypto).length,
-        merged
-            .where((a) =>
-                a.type == AssetType.currency ||
-                a.type == AssetType.commodity)
-            .length,
-        merged
-            .where((a) =>
-                a.type == AssetType.fund &&
-                (a.apiSource == 'tefas' ||
-                    a.apiSource == 'finance-api'))
-            .length,
-        merged
-            .where((a) =>
-                a.type == AssetType.fund && a.apiSource == 'befas')
-            .length,
-        merged
-            .where((a) =>
-                a.type == AssetType.cash ||
-                a.type == AssetType.realEstate)
-            .length,
-      ];
+    merged.length,
+    merged.where((a) => a.type == AssetType.stock).length,
+    merged.where((a) => a.type == AssetType.crypto).length,
+    merged
+        .where(
+          (a) => a.type == AssetType.currency || a.type == AssetType.commodity,
+        )
+        .length,
+    merged
+        .where(
+          (a) =>
+              a.type == AssetType.fund &&
+              (a.apiSource == 'tefas' || a.apiSource == 'finance-api'),
+        )
+        .length,
+    merged
+        .where((a) => a.type == AssetType.fund && a.apiSource == 'befas')
+        .length,
+    merged
+        .where(
+          (a) => a.type == AssetType.cash || a.type == AssetType.realEstate,
+        )
+        .length,
+  ];
 
   String _formatQty(double qty) {
     if (qty % 1 == 0) return qty.toStringAsFixed(0);
@@ -194,8 +193,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
       symbolMap.putIfAbsent(a.symbol, () => []).add(a);
     }
     final totalPL = totalValue - totalCost;
-    final totalPLPct =
-        totalCost == 0 ? 0.0 : (totalPL / totalCost) * 100;
+    final totalPLPct = totalCost == 0 ? 0.0 : (totalPL / totalCost) * 100;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final displayCurrency = ref.watch(currencyProvider);
     final dist = _calcDistribution(merged);
@@ -210,7 +208,8 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
           child: CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
-                  child: _buildHeader(context, merged.length, isDark)),
+                child: _buildHeader(context, merged.length, isDark),
+              ),
               SliverToBoxAdapter(
                 child: _buildSummaryCard(
                   context,
@@ -226,14 +225,18 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
               if (merged.isNotEmpty)
                 SliverToBoxAdapter(
                   child: _buildDistribution(
-                      context, isDark, dist, totalValue, displayCurrency),
+                    context,
+                    isDark,
+                    dist,
+                    totalValue,
+                    displayCurrency,
+                  ),
                 ),
               SliverToBoxAdapter(
                 child: _buildFilterChips(context, isDark, filterCounts),
               ),
               if (merged.isEmpty)
-                SliverToBoxAdapter(
-                    child: _buildEmptyState(context, isDark))
+                SliverToBoxAdapter(child: _buildEmptyState(context, isDark))
               else if (filtered.isEmpty)
                 SliverToBoxAdapter(child: _buildFilteredEmpty(context))
               else
@@ -276,8 +279,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                     fontSize: 30,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -1.2,
-                    color:
-                        isDark ? AppColors.darkText : AppColors.lightText,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
                   ),
                 ),
                 if (count > 0)
@@ -300,7 +302,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primary),
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
               ),
             )
           else
@@ -332,11 +336,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     String displayCurrency,
   ) {
     final isProfit = totalPL >= 0;
-    final plColor =
-        isProfit ? AppColors.profit : AppColors.loss;
+    final plColor = isProfit ? AppColors.profit : AppColors.loss;
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final border =
-        isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -366,8 +368,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ),
-                borderRadius:
-                    BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
             ),
             Padding(
@@ -392,8 +393,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          CurrencyUtils.format(
-                              totalValue, displayCurrency),
+                          CurrencyUtils.format(totalValue, displayCurrency),
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w800,
@@ -407,7 +407,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                       const SizedBox(width: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: plColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
@@ -477,8 +479,13 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     );
   }
 
-  Widget _summaryMetric(bool isDark, String label, String value,
-      Color? valueColor, IconData icon) {
+  Widget _summaryMetric(
+    bool isDark,
+    String label,
+    String value,
+    Color? valueColor,
+    IconData icon,
+  ) {
     return Expanded(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,10 +521,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: valueColor ??
-                        (isDark
-                            ? AppColors.darkText
-                            : AppColors.lightText),
+                    color:
+                        valueColor ??
+                        (isDark ? AppColors.darkText : AppColors.lightText),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -547,14 +553,11 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     double totalValue,
     String displayCurrency,
   ) {
-    final nonZero = dist.entries
-        .where((e) => e.value > 0)
-        .toList()
+    final nonZero = dist.entries.where((e) => e.value > 0).toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final border =
-        isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -575,16 +578,16 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: isDark
-                        ? AppColors.darkText
-                        : AppColors.lightText,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
                   ),
                 ),
                 const Spacer(),
                 if (nonZero.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(6),
@@ -609,12 +612,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                     ? Container(color: border)
                     : Row(
                         children: nonZero.map((e) {
-                          final color =
-                              _distColors[e.key] ?? AppColors.silver;
+                          final color = _distColors[e.key] ?? AppColors.silver;
                           return Expanded(
-                            flex: e.value
-                                .round()
-                                .clamp(1, 999999999),
+                            flex: e.value.round().clamp(1, 999999999),
                             child: Container(color: color),
                           );
                         }).toList(),
@@ -639,13 +639,12 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
               ...nonZero.asMap().entries.map((entry) {
                 final i = entry.key;
                 final e = entry.value;
-                final pct =
-                    totalValue > 0 ? (e.value / totalValue) * 100 : 0.0;
-                final color =
-                    _distColors[e.key] ?? AppColors.silver;
+                final pct = totalValue > 0 ? (e.value / totalValue) * 100 : 0.0;
+                final color = _distColors[e.key] ?? AppColors.silver;
                 return Padding(
                   padding: EdgeInsets.only(
-                      bottom: i < nonZero.length - 1 ? 10 : 0),
+                    bottom: i < nonZero.length - 1 ? 10 : 0,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -682,7 +681,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                       Container(
                         width: 48,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 3),
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: color.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
@@ -710,7 +711,10 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
 
   // ─────────────── Filter Chips ───────────────
   Widget _buildFilterChips(
-      BuildContext context, bool isDark, List<int> counts) {
+    BuildContext context,
+    bool isDark,
+    List<int> counts,
+  ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 0, 8),
       child: SizedBox(
@@ -727,20 +731,20 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 7),
+                  horizontal: 12,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.primary
-                      : (isDark
-                          ? AppColors.darkCard
-                          : AppColors.lightCard),
+                      : (isDark ? AppColors.darkCard : AppColors.lightCard),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected
                         ? AppColors.primary
                         : (isDark
-                            ? AppColors.darkBorder
-                            : AppColors.lightBorder),
+                              ? AppColors.darkBorder
+                              : AppColors.lightBorder),
                   ),
                 ),
                 child: Row(
@@ -756,15 +760,17 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                         color: isSelected
                             ? Colors.white
                             : (isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.lightTextSecondary),
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary),
                       ),
                     ),
                     if (count > 0 && index != 0) ...[
                       const SizedBox(width: 5),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: isSelected
                               ? Colors.white.withValues(alpha: 0.25)
@@ -805,15 +811,16 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     final color = _colorForAsset(asset);
     final isProfit = asset.profitLoss >= 0;
     final plColor = isProfit ? AppColors.profit : AppColors.loss;
-    final portfolioWeight =
-        totalValue > 0 ? (asset.currentValue / totalValue) * 100 : 0.0;
-    final badge =
-        asset.symbol.length > 5 ? asset.symbol.substring(0, 5) : asset.symbol;
+    final portfolioWeight = totalValue > 0
+        ? (asset.currentValue / totalValue) * 100
+        : 0.0;
+    final badge = asset.symbol.length > 5
+        ? asset.symbol.substring(0, 5)
+        : asset.symbol;
     final badgeFontSize = badge.length > 4 ? 9.0 : 11.0;
     final qtyStr = _formatQty(asset.quantity);
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final border =
-        isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -854,12 +861,17 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                       topRight: Radius.circular(16),
                       bottomRight: Radius.circular(16),
                     ),
-                    onTap: () => _showAssetDetail(
-                      context,
-                      asset,
-                      allForSymbol,
-                      totalValue,
-                      displayCurrency,
+                    onTap: () => showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => PositionSheet(
+                        mergedAsset: asset,
+                        allLots: allForSymbol,
+                        portfolioWeight: totalValue > 0
+                            ? (asset.currentValue / totalValue) * 100
+                            : 0.0,
+                      ),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
@@ -906,12 +918,14 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                                       const SizedBox(width: 6),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 5, vertical: 1),
+                                          horizontal: 5,
+                                          vertical: 1,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: color
-                                              .withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(4),
+                                          color: color.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
                                         ),
                                         child: Text(
                                           '%${portfolioWeight.toStringAsFixed(0)}',
@@ -944,9 +958,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                                     fontSize: 11,
                                     color: isDark
                                         ? AppColors.darkTextSecondary
-                                            .withValues(alpha: 0.7)
+                                              .withValues(alpha: 0.7)
                                         : AppColors.lightTextSecondary
-                                            .withValues(alpha: 0.7),
+                                              .withValues(alpha: 0.7),
                                   ),
                                 ),
                               ],
@@ -959,7 +973,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                             children: [
                               Text(
                                 CurrencyUtils.format(
-                                    asset.currentValue, displayCurrency),
+                                  asset.currentValue,
+                                  displayCurrency,
+                                ),
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14,
@@ -971,7 +987,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                               const SizedBox(height: 4),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 7, vertical: 3),
+                                  horizontal: 7,
+                                  vertical: 3,
+                                ),
                                 decoration: BoxDecoration(
                                   color: plColor.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(6),
@@ -1008,348 +1026,6 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     );
   }
 
-  // ─────────────── Asset Detail Modal ───────────────
-  void _showAssetDetail(
-    BuildContext context,
-    AssetModel asset,
-    List<AssetModel> allEntries,
-    double totalValue,
-    String displayCurrency,
-  ) {
-    final color = _colorForAsset(asset);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isProfit = asset.profitLoss >= 0;
-    final plColor =
-        isProfit ? AppColors.profit : AppColors.loss;
-    final portfolioWeight =
-        totalValue > 0 ? (asset.currentValue / totalValue) * 100 : 0.0;
-    final qtyStr = _formatQty(asset.quantity);
-    final border =
-        isDark ? AppColors.darkBorder : AppColors.lightBorder;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Center(
-                        child: Text(
-                          asset.symbol.length > 4
-                              ? asset.symbol.substring(0, 4)
-                              : asset.symbol,
-                          style: TextStyle(
-                            color: color,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            asset.symbol,
-                            style: TextStyle(
-                              color: isDark
-                                  ? AppColors.darkText
-                                  : AppColors.lightText,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 18,
-                            ),
-                          ),
-                          Text(
-                            asset.name,
-                            style: TextStyle(
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.lightTextSecondary,
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          CurrencyUtils.format(
-                              asset.currentValue, displayCurrency),
-                          style: TextStyle(
-                            color: isDark
-                                ? AppColors.darkText
-                                : AppColors.lightText,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: plColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${isProfit ? '+' : ''}${asset.profitLossPercent.toStringAsFixed(2)}%',
-                            style: TextStyle(
-                              color: plColor,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(height: 1, color: border),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        _detailMetric(isDark, 'Anlık Fiyat',
-                            asset.currentPriceDisplay,
-                            Icons.price_change_outlined, color),
-                        const SizedBox(width: 10),
-                        _detailMetric(
-                            isDark,
-                            'Miktar',
-                            '$qtyStr adet',
-                            Icons.layers_outlined,
-                            color),
-                        const SizedBox(width: 10),
-                        _detailMetric(
-                          isDark,
-                          'Kar/Zarar',
-                          '${isProfit ? '+' : '-'}${CurrencyUtils.format(asset.profitLoss.abs(), displayCurrency)}',
-                          isProfit
-                              ? Icons.trending_up_rounded
-                              : Icons.trending_down_rounded,
-                          plColor,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        _detailMetric(
-                            isDark,
-                            'Ort. Alış',
-                            '${asset.currency == 'USD' ? '\$' : '₺'}${asset.buyPrice.toStringAsFixed(2)}',
-                            Icons.receipt_outlined,
-                            color),
-                        const SizedBox(width: 10),
-                        _detailMetric(
-                            isDark,
-                            'Maliyet',
-                            CurrencyUtils.format(
-                                asset.totalCost, displayCurrency),
-                            Icons.account_balance_wallet_outlined,
-                            color),
-                        const SizedBox(width: 10),
-                        _detailMetric(
-                            isDark,
-                            'Portföy Payı',
-                            '%${portfolioWeight.toStringAsFixed(1)}',
-                            Icons.pie_chart_outline_rounded,
-                            color),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              if (allEntries.length > 1)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.receipt_long_outlined,
-                        size: 14,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${allEntries.length} ayrı alım kaydı mevcut',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.lightTextSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                    20,
-                    16,
-                    20,
-                    MediaQuery.of(context).viewPadding.bottom + 20),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  AssetDetailScreen(mergedAsset: asset),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.history_rounded, size: 18),
-                        label: const Text('İşlem Geçmişi'),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              if (allEntries.length == 1) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => EditAssetScreen(
-                                        asset: allEntries.first),
-                                  ),
-                                );
-                              } else {
-                                _showSelectEntrySheet(
-                                    context, allEntries);
-                              }
-                            },
-                            icon: const Icon(Icons.edit_outlined, size: 18),
-                            label: const Text('Düzenle'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _confirmDeleteAll(
-                                  context, asset.symbol, allEntries);
-                            },
-                            icon: const Icon(
-                                Icons.delete_outline_rounded,
-                                size: 18),
-                            label: const Text('Sil'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  AppColors.loss.withValues(alpha: 0.1),
-                              foregroundColor: AppColors.loss,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _detailMetric(bool isDark, String title, String value,
-      IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 14, color: color.withValues(alpha: 0.75)),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: isDark ? AppColors.darkText : AppColors.lightText,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 10,
-                color: isDark
-                    ? AppColors.darkTextSecondary
-                    : AppColors.lightTextSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ─────────────── Sort Sheet ───────────────
   void _showSortSheet(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1360,8 +1036,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
         return Container(
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
@@ -1374,28 +1049,29 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: isDark
-                        ? AppColors.darkText
-                        : AppColors.lightText,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
                     letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 16),
                 _sortTile(
-                    context,
-                    'Değere göre (büyükten küçüğe)',
-                    Icons.trending_down_rounded,
-                    _SortOption.valueDesc),
+                  context,
+                  'Değere göre (büyükten küçüğe)',
+                  Icons.trending_down_rounded,
+                  _SortOption.valueDesc,
+                ),
                 _sortTile(
-                    context,
-                    'Kar/Zarara göre (büyükten küçüğe)',
-                    Icons.percent_rounded,
-                    _SortOption.plDesc),
+                  context,
+                  'Kar/Zarara göre (büyükten küçüğe)',
+                  Icons.percent_rounded,
+                  _SortOption.plDesc,
+                ),
                 _sortTile(
-                    context,
-                    'İsme göre (A → Z)',
-                    Icons.sort_by_alpha_rounded,
-                    _SortOption.nameAsc),
+                  context,
+                  'İsme göre (A → Z)',
+                  Icons.sort_by_alpha_rounded,
+                  _SortOption.nameAsc,
+                ),
               ],
             ),
           ),
@@ -1404,136 +1080,34 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     );
   }
 
-  Widget _sortTile(BuildContext context, String label, IconData icon,
-      _SortOption option) {
+  Widget _sortTile(
+    BuildContext context,
+    String label,
+    IconData icon,
+    _SortOption option,
+  ) {
     final isSelected = _sortOption == option;
     return ListTile(
-      leading: Icon(icon,
-          color: isSelected ? AppColors.primary : null, size: 22),
+      leading: Icon(
+        icon,
+        color: isSelected ? AppColors.primary : null,
+        size: 22,
+      ),
       title: Text(
         label,
         style: TextStyle(
-          fontWeight:
-              isSelected ? FontWeight.w700 : FontWeight.w400,
+          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
           color: isSelected ? AppColors.primary : null,
         ),
       ),
       trailing: isSelected
-          ? const Icon(Icons.check_rounded,
-              color: AppColors.primary, size: 20)
+          ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 20)
           : null,
       contentPadding: EdgeInsets.zero,
       onTap: () {
         setState(() => _sortOption = option);
         Navigator.pop(context);
       },
-    );
-  }
-
-  // ─────────────── Select Entry Sheet ───────────────
-  void _showSelectEntrySheet(
-      BuildContext context, List<AssetModel> entries) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hangi alımı düzenlemek istiyorsun?',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: isDark
-                        ? AppColors.darkText
-                        : AppColors.lightText,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...entries.map((entry) {
-                  final dateStr =
-                      '${entry.buyDate.day}.${entry.buyDate.month}.${entry.buyDate.year}';
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.receipt_outlined),
-                    title: Text(
-                      '${_formatQty(entry.quantity)} adet · ${entry.currency == 'USD' ? '\$' : '₺'}${entry.buyPrice.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      '$dateStr${entry.platform != null ? ' · ${entry.platform}' : ''}',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    trailing:
-                        const Icon(Icons.arrow_forward_ios, size: 14),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              EditAssetScreen(asset: entry),
-                        ),
-                      );
-                    },
-                  );
-                }),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ─────────────── Confirm Delete ───────────────
-  void _confirmDeleteAll(
-      BuildContext context, String symbol, List<AssetModel> entries) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18)),
-        title: Text('$symbol Sil',
-            style: const TextStyle(fontWeight: FontWeight.w700)),
-        content: Text(
-            '$symbol için ${entries.length} alım kaydını silmek istiyor musun?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final ids = entries.map((e) => e.id).toList();
-              await ref.read(assetsProvider.notifier).deleteAll(ids);
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('$symbol silindi.'),
-                    backgroundColor: AppColors.loss,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
-            child: const Text('Sil',
-                style: TextStyle(color: AppColors.loss)),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1547,8 +1121,8 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
           color: isDark ? AppColors.darkCard : AppColors.lightCard,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-              color:
-                  isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          ),
         ),
         child: Center(
           child: Column(
@@ -1560,8 +1134,11 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                   color: AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.pie_chart_outline_rounded,
-                    size: 36, color: AppColors.primary),
+                child: const Icon(
+                  Icons.pie_chart_outline_rounded,
+                  size: 36,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(height: 18),
               Text(
@@ -1569,8 +1146,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
-                  color:
-                      isDark ? AppColors.darkText : AppColors.lightText,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
                 ),
               ),
               const SizedBox(height: 8),
@@ -1601,10 +1177,11 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
             Icon(
               Icons.filter_list_off_rounded,
               size: 48,
-              color: (isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.lightTextSecondary)
-                  .withValues(alpha: 0.3),
+              color:
+                  (isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary)
+                      .withValues(alpha: 0.3),
             ),
             const SizedBox(height: 12),
             Text(
@@ -1612,8 +1189,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 15,
-                color:
-                    isDark ? AppColors.darkText : AppColors.lightText,
+                color: isDark ? AppColors.darkText : AppColors.lightText,
               ),
             ),
             const SizedBox(height: 4),
