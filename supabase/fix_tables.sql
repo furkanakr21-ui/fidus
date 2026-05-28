@@ -78,8 +78,8 @@ do $$ begin
 end $$;
 
 -- ─────────────────────────────────────────────────────────────
--- Anında fiyat güncelleme — assets'e yeni varlık eklenince
--- pg_net üzerinden update-prices'ı tetikler (sunucu taraflı)
+-- Anında fiyat güncelleme — assets'e yeni izlenen varlık eklenince
+-- Fiyat zaten varsa gereksiz update-prices çağrısı yapmaz.
 -- ─────────────────────────────────────────────────────────────
 
 create or replace function public.trigger_price_update_on_asset_insert()
@@ -89,18 +89,35 @@ security definer
 set search_path = public
 as $$
 begin
-  perform net.http_post(
-    url     := 'https://ighutbzdcqvhjwqvsrzg.supabase.co/functions/v1/update-prices',
-    headers := '{"Content-Type": "application/json"}'::jsonb,
-    body    := '{}'::jsonb
-  );
-  return new;
+  if exists (
+    select 1
+    from new_assets a
+    where a.api_source in ('yahoo', 'coingecko', 'exchangerate', 'goldapi')
+      and a.api_id is not null
+      and not exists (
+        select 1
+        from public.prices p
+        where p.api_source = a.api_source
+          and p.symbol = a.api_id
+          and p.price is not null
+          and p.price > 0
+      )
+  ) then
+    perform net.http_post(
+      url     := 'https://ighutbzdcqvhjwqvsrzg.supabase.co/functions/v1/update-prices',
+      headers := '{"Content-Type": "application/json"}'::jsonb,
+      body    := '{}'::jsonb
+    );
+  end if;
+
+  return null;
 end;
 $$;
 
 drop trigger if exists fetch_price_on_asset_insert on public.assets;
 create trigger fetch_price_on_asset_insert
   after insert on public.assets
+  referencing new table as new_assets
   for each statement
   execute function public.trigger_price_update_on_asset_insert();
 
