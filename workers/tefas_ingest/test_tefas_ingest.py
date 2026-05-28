@@ -45,6 +45,14 @@ class FakeDb:
         self.patches.append((table, params, values))
 
 
+class FakeRunDb:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def latest_successful_run(self):
+        return self.rows[0] if self.rows else None
+
+
 class TefasIngestBehaviorTest(unittest.TestCase):
     def test_validate_rows_accepts_partial_family_updates(self):
         rows_by_family = {
@@ -98,6 +106,42 @@ class TefasIngestBehaviorTest(unittest.TestCase):
         self.assertEqual(len(no_price_payloads), 1)
         self.assertNotIn("price", no_price_payloads[0])
         self.assertNotIn("price_date", no_price_payloads[0])
+
+    def test_should_skip_recent_success_when_within_window(self):
+        db = FakeRunDb([
+            {
+                "finished_at": "2026-05-28T06:15:00+00:00",
+                "ok": True,
+                "published": True,
+            }
+        ])
+        now = tefas_ingest.datetime.fromisoformat("2026-05-28T06:40:00+00:00")
+
+        self.assertTrue(tefas_ingest.should_skip_recent_success(db, 30, now))
+
+    def test_should_not_skip_when_success_is_older_than_window(self):
+        db = FakeRunDb([
+            {
+                "finished_at": "2026-05-28T06:00:00+00:00",
+                "ok": True,
+                "published": True,
+            }
+        ])
+        now = tefas_ingest.datetime.fromisoformat("2026-05-28T06:40:00+00:00")
+
+        self.assertFalse(tefas_ingest.should_skip_recent_success(db, 30, now))
+
+    def test_should_not_skip_when_window_is_disabled(self):
+        db = FakeRunDb([
+            {
+                "finished_at": "2026-05-28T06:39:00+00:00",
+                "ok": True,
+                "published": True,
+            }
+        ])
+        now = tefas_ingest.datetime.fromisoformat("2026-05-28T06:40:00+00:00")
+
+        self.assertFalse(tefas_ingest.should_skip_recent_success(db, 0, now))
 
 
 if __name__ == "__main__":

@@ -511,6 +511,32 @@ class SupabaseRest:
         if not response.ok:
             raise RuntimeError(f"Supabase patch {table} failed: {response.status_code} {response.text[:500]}")
 
+    def latest_successful_run(self) -> dict[str, Any] | None:
+        endpoint = f"{self.url}/rest/v1/market_data_runs"
+        headers = {
+            "apikey": self.key,
+            "Authorization": f"Bearer {self.key}",
+            "Accept": "application/json",
+        }
+        response = self.request_with_retry(
+            "GET",
+            endpoint,
+            params={
+                "select": "finished_at,ok,published",
+                "source": "eq.tefas-official",
+                "ok": "eq.true",
+                "published": "eq.true",
+                "order": "finished_at.desc",
+                "limit": "1",
+            },
+            headers=headers,
+            timeout=20,
+        )
+        if not response.ok:
+            raise RuntimeError(f"Supabase latest run lookup failed: {response.status_code} {response.text[:500]}")
+        rows = response.json()
+        return rows[0] if rows else None
+
     def insert_run(self, row: dict[str, Any]) -> None:
         endpoint = f"{self.url}/rest/v1/market_data_runs"
         headers = {
@@ -528,6 +554,21 @@ class SupabaseRest:
         )
         if not response.ok:
             print(f"warning: market_data_runs insert failed: {response.status_code} {response.text[:300]}", file=sys.stderr)
+
+
+def should_skip_recent_success(db: Any, window_minutes: int, now: datetime | None = None) -> bool:
+    if window_minutes <= 0:
+        return False
+    latest = db.latest_successful_run()
+    if not latest or not latest.get("finished_at"):
+        return False
+    finished = datetime.fromisoformat(latest["finished_at"].replace("Z", "+00:00"))
+    if finished.tzinfo is None:
+        finished = finished.replace(tzinfo=timezone.utc)
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    return current - finished <= timedelta(minutes=window_minutes)
 
 
 def discover_target_date(client: TefasClient) -> tuple[date, list[dict[str, Any]]]:
@@ -585,6 +626,12 @@ def publish(
 
 def main() -> int:
     started = datetime.now(timezone.utc)
+    skip_window = env_int("TEFAS_SKIP_IF_SUCCESS_WITHIN_MINUTES", 0)
+    if skip_window > 0 and "SUPABASE_URL" in os.environ and "SUPABASE_SERVICE_ROLE_KEY" in os.environ:
+        if should_skip_recent_success(SupabaseRest(), skip_window, started):
+            print(f"Skipping TEFAS ingest: successful published run exists within {skip_window} minutes")
+            return 0
+
     client = TefasClient(
         interval_s=env_float("TEFAS_REQUEST_INTERVAL_SECONDS", 10.0),
         max_retries=env_int("TEFAS_MAX_RETRIES", 5),
