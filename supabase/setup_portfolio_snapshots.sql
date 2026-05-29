@@ -143,29 +143,28 @@ begin
   end if;
 
   return query
-  with calculated as (
+  with priced_assets as (
     select
       p.user_id,
       p.id as portfolio_id,
       v_snapshot_date as snapshot_date,
-      coalesce(
-        round(
-          sum(
-            case
-              when a.id is null then 0
-              else
-                case
-                  when a.type = 'currency' then priced.asset_price
-                  when a.currency = 'USD' then priced.asset_price * v_usd_try_rate
-                  else priced.asset_price
-                end * a.quantity
-            end
-          ),
-          4
-        ),
-        0
-      ) as value_try,
-      count(a.id)::integer as asset_count
+      a.id as asset_id,
+      a.symbol,
+      a.name,
+      a.type,
+      a.api_source,
+      a.api_id,
+      a.quantity,
+      a.created_at,
+      case
+        when a.id is null then 0
+        else
+          case
+            when a.type = 'currency' then priced.asset_price
+            when a.currency = 'USD' then priced.asset_price * v_usd_try_rate
+            else priced.asset_price
+          end * a.quantity
+      end as value_try
     from public.portfolios p
     left join public.assets a
       on a.portfolio_id = p.id
@@ -217,7 +216,34 @@ begin
       )
       limit 1
     ) priced on a.id is not null
-    group by p.user_id, p.id
+  ),
+  portfolio_calculated as (
+    select
+      pa.user_id,
+      pa.portfolio_id,
+      pa.snapshot_date,
+      coalesce(round(sum(pa.value_try), 4), 0) as value_try,
+      count(pa.asset_id)::integer as asset_count
+    from priced_assets pa
+    group by pa.user_id, pa.portfolio_id, pa.snapshot_date
+  ),
+  asset_calculated as (
+    select
+      pa.user_id,
+      pa.portfolio_id,
+      pa.snapshot_date,
+      pa.symbol,
+      (array_agg(pa.name order by pa.created_at, pa.asset_id))[1] as name,
+      (array_agg(pa.type order by pa.created_at, pa.asset_id))[1] as type,
+      (array_agg(pa.api_source order by pa.created_at, pa.asset_id))[1]
+        as api_source,
+      (array_agg(pa.api_id order by pa.created_at, pa.asset_id))[1] as api_id,
+      sum(pa.quantity) as quantity,
+      round(sum(pa.value_try), 4) as value_try,
+      count(pa.asset_id)::integer as asset_row_count
+    from priced_assets pa
+    where pa.asset_id is not null
+    group by pa.user_id, pa.portfolio_id, pa.snapshot_date, pa.symbol
   ),
   inserted as (
     insert into public.portfolio_value_snapshots (
@@ -241,17 +267,62 @@ begin
       v_fx_rates_updated_at,
       c.asset_count,
       now()
-    from calculated c
+    from portfolio_calculated c
     on conflict (portfolio_id, snapshot_date) do nothing
+    returning 1
+  ),
+  inserted_asset_snapshots as (
+    insert into public.portfolio_asset_value_snapshots (
+      user_id,
+      portfolio_id,
+      snapshot_date,
+      symbol,
+      name,
+      type,
+      api_source,
+      api_id,
+      quantity,
+      value_try,
+      value_usd,
+      usd_try_rate,
+      fx_rates_updated_at,
+      asset_row_count,
+      captured_at
+    )
+    select
+      ac.user_id,
+      ac.portfolio_id,
+      ac.snapshot_date,
+      ac.symbol,
+      ac.name,
+      ac.type,
+      ac.api_source,
+      ac.api_id,
+      ac.quantity::numeric(28, 8),
+      ac.value_try::numeric(20, 4),
+      round(ac.value_try / v_usd_try_rate, 4)::numeric(20, 4),
+      v_usd_try_rate::numeric(20, 8),
+      v_fx_rates_updated_at,
+      ac.asset_row_count,
+      now()
+    from asset_calculated ac
+    on conflict (portfolio_id, snapshot_date, symbol) do nothing
+    returning 1
+  ),
+  deleted_old_asset_snapshots as (
+    delete from public.portfolio_asset_value_snapshots pavs
+    where pavs.snapshot_date < (v_snapshot_date - 2)
     returning 1
   )
   select
     v_snapshot_date,
-    (select count(*)::integer from calculated),
+    (select count(*)::integer from portfolio_calculated),
     (select count(*)::integer from inserted),
     (
-      (select count(*)::integer from calculated)
+      (select count(*)::integer from portfolio_calculated)
       - (select count(*)::integer from inserted)
+      + ((select count(*)::integer from inserted_asset_snapshots) * 0)
+      + ((select count(*)::integer from deleted_old_asset_snapshots) * 0)
     );
 end;
 $$;
