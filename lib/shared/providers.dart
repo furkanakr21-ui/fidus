@@ -3,15 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/asset_model.dart';
+import 'models/daily_asset_change.dart';
 import 'models/daily_portfolio_change.dart';
 import 'models/income_expense_model.dart';
 import 'models/goal_model.dart';
+import 'models/portfolio_asset_value_snapshot_model.dart';
 import 'models/portfolio_value_snapshot_model.dart';
 import 'models/portfolio_model.dart';
 import 'models/transaction_model.dart';
 import 'services/asset_service.dart';
 import 'services/cashflow_service.dart';
 import 'services/goal_service.dart';
+import 'services/portfolio_asset_snapshot_service.dart';
 import 'services/portfolio_service.dart';
 import 'services/portfolio_snapshot_service.dart';
 import 'services/supabase_service.dart';
@@ -188,6 +191,56 @@ final portfolioSnapshotHistoryProvider =
       List<PortfolioValueSnapshot>
     >(PortfolioSnapshotHistoryNotifier.new);
 
+class TodayAssetSnapshotsNotifier
+    extends Notifier<Map<String, PortfolioAssetValueSnapshot>> {
+  RealtimeChannel? _channel;
+
+  @override
+  Map<String, PortfolioAssetValueSnapshot> build() {
+    final portfolioId = ref.watch(activePortfolioProvider);
+    _channel?.unsubscribe();
+    if (portfolioId.isEmpty) return {};
+    _setupRealtime(portfolioId);
+    Future.microtask(() => _load(portfolioId));
+    return {};
+  }
+
+  void _setupRealtime(String portfolioId) {
+    _channel = supabase
+        .channel('portfolio_asset_snapshots_$portfolioId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'portfolio_asset_value_snapshots',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'portfolio_id',
+            value: portfolioId,
+          ),
+          callback: (_) => _load(portfolioId),
+        )
+        .subscribe();
+    ref.onDispose(() => _channel?.unsubscribe());
+  }
+
+  Future<void> _load(String portfolioId) async {
+    final snapshots = await PortfolioAssetSnapshotService.getToday(portfolioId);
+    state = {for (final snapshot in snapshots) snapshot.symbol: snapshot};
+  }
+
+  Future<void> refresh() async {
+    final portfolioId = ref.read(activePortfolioProvider);
+    if (portfolioId.isEmpty) return;
+    await _load(portfolioId);
+  }
+}
+
+final todayAssetSnapshotsProvider =
+    NotifierProvider<
+      TodayAssetSnapshotsNotifier,
+      Map<String, PortfolioAssetValueSnapshot>
+    >(TodayAssetSnapshotsNotifier.new);
+
 final dailyPortfolioChangeProvider = Provider<DailyPortfolioChange>((ref) {
   ref.watch(exchangeRatesProvider);
   return DailyPortfolioChange.calculate(
@@ -195,6 +248,25 @@ final dailyPortfolioChangeProvider = Provider<DailyPortfolioChange>((ref) {
     snapshot: ref.watch(todayPortfolioSnapshotProvider),
     displayCurrency: ref.watch(currencyProvider),
   );
+});
+
+final dailyAssetChangesProvider = Provider<Map<String, DailyAssetChange>>((
+  ref,
+) {
+  ref.watch(exchangeRatesProvider);
+  final displayCurrency = ref.watch(currencyProvider);
+  final hasPortfolioSnapshot =
+      ref.watch(todayPortfolioSnapshotProvider) != null;
+  final snapshots = ref.watch(todayAssetSnapshotsProvider);
+  return {
+    for (final asset in ref.watch(mergedAssetsProvider))
+      asset.symbol: DailyAssetChange.calculate(
+        currentValueTry: asset.currentValue,
+        snapshot: snapshots[asset.symbol],
+        hasPortfolioSnapshot: hasPortfolioSnapshot,
+        displayCurrency: displayCurrency,
+      ),
+  };
 });
 
 // ─────────────────────────────────────────
