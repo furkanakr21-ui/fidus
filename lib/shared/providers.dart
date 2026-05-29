@@ -192,17 +192,17 @@ final portfolioSnapshotHistoryProvider =
     >(PortfolioSnapshotHistoryNotifier.new);
 
 class TodayAssetSnapshotsNotifier
-    extends Notifier<Map<String, PortfolioAssetValueSnapshot>> {
+    extends Notifier<Map<String, PortfolioAssetValueSnapshot>?> {
   RealtimeChannel? _channel;
 
   @override
-  Map<String, PortfolioAssetValueSnapshot> build() {
+  Map<String, PortfolioAssetValueSnapshot>? build() {
     final portfolioId = ref.watch(activePortfolioProvider);
     _channel?.unsubscribe();
     if (portfolioId.isEmpty) return {};
     _setupRealtime(portfolioId);
     Future.microtask(() => _load(portfolioId));
-    return {};
+    return null;
   }
 
   void _setupRealtime(String portfolioId) {
@@ -238,7 +238,7 @@ class TodayAssetSnapshotsNotifier
 final todayAssetSnapshotsProvider =
     NotifierProvider<
       TodayAssetSnapshotsNotifier,
-      Map<String, PortfolioAssetValueSnapshot>
+      Map<String, PortfolioAssetValueSnapshot>?
     >(TodayAssetSnapshotsNotifier.new);
 
 final dailyPortfolioChangeProvider = Provider<DailyPortfolioChange>((ref) {
@@ -258,12 +258,13 @@ final dailyAssetChangesProvider = Provider<Map<String, DailyAssetChange>>((
   final hasPortfolioSnapshot =
       ref.watch(todayPortfolioSnapshotProvider) != null;
   final snapshots = ref.watch(todayAssetSnapshotsProvider);
+  final hasLoadedAssetSnapshots = snapshots != null;
   return {
     for (final asset in ref.watch(mergedAssetsProvider))
       asset.symbol: DailyAssetChange.calculate(
         currentValueTry: asset.currentValue,
-        snapshot: snapshots[asset.symbol],
-        hasPortfolioSnapshot: hasPortfolioSnapshot,
+        snapshot: snapshots?[asset.symbol],
+        hasPortfolioSnapshot: hasPortfolioSnapshot && hasLoadedAssetSnapshots,
         displayCurrency: displayCurrency,
       ),
   };
