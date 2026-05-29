@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/asset_model.dart';
+import '../../shared/models/daily_asset_change.dart';
 import '../../shared/models/daily_portfolio_change.dart';
 import '../../shared/models/income_expense_model.dart';
 import '../../shared/models/goal_model.dart';
@@ -21,6 +22,7 @@ class DashboardScreen extends ConsumerWidget {
     final totalValue = ref.watch(totalValueProvider);
     final totalCost = ref.watch(totalCostProvider);
     final dailyChange = ref.watch(dailyPortfolioChangeProvider);
+    final dailyAssetChanges = ref.watch(dailyAssetChangesProvider);
     ref.watch(priceUpdateProvider);
     final cashflows = ref.watch(cashflowProvider);
     final goals = ref.watch(goalsProvider);
@@ -105,6 +107,7 @@ class DashboardScreen extends ConsumerWidget {
                     child: _buildAssetsByCategory(
                       context,
                       merged,
+                      dailyAssetChanges,
                       displayCurrency,
                     ),
                   ),
@@ -608,6 +611,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildAssetsByCategory(
     BuildContext context,
     List<AssetModel> merged,
+    Map<String, DailyAssetChange> dailyAssetChanges,
     String displayCurrency,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -693,6 +697,7 @@ class DashboardScreen extends ConsumerWidget {
               catAssets,
               catTotal,
               catPct,
+              dailyAssetChanges,
               displayCurrency,
             ),
           );
@@ -708,6 +713,7 @@ class DashboardScreen extends ConsumerWidget {
     List<AssetModel> assets,
     double catTotal,
     double catPct,
+    Map<String, DailyAssetChange> dailyAssetChanges,
     String displayCurrency,
   ) {
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
@@ -824,6 +830,7 @@ class DashboardScreen extends ConsumerWidget {
                   isDark,
                   a,
                   cat.color,
+                  dailyAssetChanges[a.symbol],
                   displayCurrency,
                 ),
               ),
@@ -840,11 +847,17 @@ class DashboardScreen extends ConsumerWidget {
     bool isDark,
     AssetModel asset,
     Color color,
+    DailyAssetChange? dailyChange,
     String displayCurrency,
   ) {
-    final pct = asset.profitLossPercent;
-    final isProfit = pct >= 0;
-    final plColor = isProfit ? AppColors.profit : AppColors.loss;
+    final isDailyReady = dailyChange?.hasPortfolioSnapshot ?? false;
+    final isProfit = dailyChange?.isProfit ?? true;
+    final plColor = !isDailyReady
+        ? (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)
+        : isProfit
+        ? AppColors.profit
+        : AppColors.loss;
+    final dailyText = _dailyAssetChangeText(dailyChange);
     final sym = asset.symbol.length > 6
         ? asset.symbol.substring(0, 6)
         : asset.symbol;
@@ -910,18 +923,29 @@ class DashboardScreen extends ConsumerWidget {
                   color: isDark ? AppColors.darkText : AppColors.lightText,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: plColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Text(
-                  '${isProfit ? '+' : ''}${pct.toStringAsFixed(2)}%',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: plColor,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 118),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: plColor.withValues(alpha: isDailyReady ? 0.1 : 0.07),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      dailyText,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: plColor,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -930,6 +954,14 @@ class DashboardScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _dailyAssetChangeText(DailyAssetChange? change) {
+    if (change == null || !change.hasPortfolioSnapshot) return '--';
+    final amount = change.formatAmount();
+    if (!change.hasAssetSnapshot && change.baselineValue == 0) return amount;
+    final percentPrefix = change.percent >= 0 ? '+' : '';
+    return '$amount · $percentPrefix${change.percent.toStringAsFixed(2)}%';
   }
 
   // ─────────────── Recent Cashflows ───────────────
