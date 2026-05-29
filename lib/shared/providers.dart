@@ -255,16 +255,19 @@ final dailyAssetChangesProvider = Provider<Map<String, DailyAssetChange>>((
 ) {
   ref.watch(exchangeRatesProvider);
   final displayCurrency = ref.watch(currencyProvider);
-  final hasPortfolioSnapshot =
-      ref.watch(todayPortfolioSnapshotProvider) != null;
+  final portfolioSnapshot = ref.watch(todayPortfolioSnapshotProvider);
   final snapshots = ref.watch(todayAssetSnapshotsProvider);
   final hasLoadedAssetSnapshots = snapshots != null;
+  final hasUsableAssetSnapshotSet =
+      portfolioSnapshot != null &&
+      hasLoadedAssetSnapshots &&
+      (snapshots.isNotEmpty || portfolioSnapshot.assetCount == 0);
   return {
     for (final asset in ref.watch(mergedAssetsProvider))
       asset.symbol: DailyAssetChange.calculate(
         currentValueTry: asset.currentValue,
         snapshot: snapshots?[asset.symbol],
-        hasPortfolioSnapshot: hasPortfolioSnapshot && hasLoadedAssetSnapshots,
+        hasPortfolioSnapshot: hasUsableAssetSnapshotSet,
         displayCurrency: displayCurrency,
       ),
   };
