@@ -91,7 +91,7 @@ select cron.schedule(
 -- Not: Fon verisi artik Supabase Edge Function ile guncellenmez.
 -- Resmi TEFAS endpoint'leri bot koruması nedeniyle Python Docker worker
 -- üzerinden, sunucu taraflı scheduler ile çalıştırılır.
--- Önerilen worker saatleri TR: 08:35, 09:35, 10:35, 11:35, 13:05.
+-- GitHub Actions worker saatleri TR: 04:00, 05:00, 06:00, 07:35, 08:35, 09:35.
 
 -- Kripto metadata (CoinGecko kataloğu) — her gece 03:00 UTC (06:00 TR)
 select cron.schedule(

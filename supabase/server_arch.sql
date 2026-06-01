@@ -268,7 +268,7 @@ select cron.schedule(
 
 -- TEFAS/BEFAS fon verisi Supabase cron ile degil, dis Python worker ile cekilir.
 -- Worker: workers/tefas_ingest
--- Onerilen saatler TR: 08:35, 09:35, 10:35, 11:35, 13:05.
+-- GitHub Actions worker saatleri TR: 04:00, 05:00, 06:00, 07:35, 08:35, 09:35.
 
 -- update-asset-metadata: her gece 03:00'da (kripto arama kataloğu)
 select cron.schedule(
