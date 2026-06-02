@@ -54,4 +54,40 @@ void main() {
 
     expect(data.hasEnoughData, isFalse);
   });
+
+  test('builds professional axis scale with rounded money ticks', () {
+    final data = PortfolioHistoryChartData.fromSnapshots(
+      [
+        _snapshot(day: 20, valueTry: 96400, valueUsd: 2400),
+        _snapshot(day: 21, valueTry: 100250, valueUsd: 2500),
+        _snapshot(day: 22, valueTry: 103200, valueUsd: 2580),
+      ],
+      range: PortfolioHistoryRange.all,
+      displayCurrency: 'TRY',
+      now: DateTime(2026, 5, 22),
+    );
+
+    expect(data.axis.minY, 94000);
+    expect(data.axis.maxY, 104000);
+    expect(data.axis.interval, 2000);
+    expect(data.formatCompactMoney(data.axis.maxY, 'TRY'), '₺104K');
+  });
+
+  test('calculates range change against the first visible snapshot', () {
+    final data = PortfolioHistoryChartData.fromSnapshots(
+      [
+        _snapshot(day: 20, valueTry: 100000, valueUsd: 2500),
+        _snapshot(day: 21, valueTry: 101000, valueUsd: 2525),
+        _snapshot(day: 22, valueTry: 104500, valueUsd: 2612.5),
+      ],
+      range: PortfolioHistoryRange.all,
+      displayCurrency: 'TRY',
+      now: DateTime(2026, 5, 22),
+    );
+
+    expect(data.periodChange.amount, 4500);
+    expect(data.periodChange.percent, 4.5);
+    expect(data.periodChange.isPositive, isTrue);
+    expect(data.formatSignedMoney(data.periodChange.amount, 'TRY'), '+₺4.500');
+  });
 }

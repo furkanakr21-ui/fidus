@@ -586,10 +586,12 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     final secondary = isDark
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
-    final accent =
-        data.points.length >= 2 &&
-            data.points.last.value < data.points.first.value
-        ? AppColors.loss
+    final accent = data.hasEnoughData
+        ? data.periodChange.isNegative
+              ? AppColors.loss
+              : data.periodChange.isPositive
+              ? AppColors.profit
+              : AppColors.primary
         : AppColors.primary;
     final latestValue = data.points.isEmpty
         ? null
@@ -633,7 +635,17 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
             ),
             const SizedBox(height: 12),
             _buildHistoryRangeSelector(isDark),
-            const SizedBox(height: 16),
+            if (data.hasEnoughData) ...[
+              const SizedBox(height: 12),
+              _buildHistoryPeriodSummary(
+                data,
+                displayCurrency,
+                accent,
+                secondary,
+                border,
+              ),
+            ],
+            const SizedBox(height: 14),
             SizedBox(
               height: 190,
               child: data.hasEnoughData
@@ -648,6 +660,73 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryPeriodSummary(
+    PortfolioHistoryChartData data,
+    String displayCurrency,
+    Color accent,
+    Color secondary,
+    Color border,
+  ) {
+    final percent = data.periodChange.percent;
+    final percentLabel = percent == null
+        ? null
+        : '${percent >= 0 ? '+' : ''}${percent.toStringAsFixed(percent.abs() >= 10 ? 1 : 2)}%';
+    final amountLabel = data.formatSignedMoney(
+      data.periodChange.amount,
+      displayCurrency,
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            data.periodChange.isNegative
+                ? Icons.trending_down_rounded
+                : Icons.trending_up_rounded,
+            size: 18,
+            color: accent,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Seçili dönem değişimi',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: secondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              percentLabel == null
+                  ? amountLabel
+                  : '$amountLabel  $percentLabel',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: accent,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1400,12 +1479,7 @@ class _PortfolioHistoryLineChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final points = data.points;
-    final rawRange = data.maxValue - data.minValue;
-    final padding = rawRange == 0
-        ? data.maxValue.abs() * 0.04
-        : rawRange * 0.12;
-    final minY = (data.minValue - padding).clamp(0, double.infinity);
-    final maxY = data.maxValue + padding;
+    final axis = data.axis;
     final spots = points
         .asMap()
         .entries
@@ -1418,12 +1492,12 @@ class _PortfolioHistoryLineChart extends StatelessWidget {
       LineChartData(
         minX: 0,
         maxX: (points.length - 1).toDouble(),
-        minY: minY.toDouble(),
-        maxY: maxY <= minY ? minY.toDouble() + 1 : maxY,
+        minY: axis.minY,
+        maxY: axis.maxY,
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: _interval(minY.toDouble(), maxY.toDouble()),
+          horizontalInterval: axis.interval,
           getDrawingHorizontalLine: (_) =>
               FlLine(color: border.withValues(alpha: 0.55), strokeWidth: 1),
         ),
@@ -1431,11 +1505,11 @@ class _PortfolioHistoryLineChart extends StatelessWidget {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 48,
+              reservedSize: 54,
               getTitlesWidget: (value, meta) => Padding(
                 padding: const EdgeInsets.only(right: 6),
                 child: Text(
-                  _shortMoney(value),
+                  data.formatCompactMoney(value, displayCurrency),
                   textAlign: TextAlign.right,
                   style: TextStyle(
                     color: secondary,
@@ -1485,10 +1559,18 @@ class _PortfolioHistoryLineChart extends StatelessWidget {
             getTooltipItems: (items) => items.map((item) {
               final index = item.x.round().clamp(0, points.length - 1);
               final date = points[index].date;
+              final delta = item.y - points.first.value;
+              final percent = points.first.value == 0
+                  ? null
+                  : (delta / points.first.value) * 100;
+              final changeLabel =
+                  '${data.formatSignedMoney(delta, displayCurrency)}'
+                  '${percent == null ? '' : '  ${_formatSignedPercent(percent)}'}';
               return LineTooltipItem(
                 '${date.day}.${date.month}.${date.year}\n'
                 '${CurrencyUtils.symbol(displayCurrency)}'
-                '${CurrencyUtils.formatRaw(item.y)}',
+                '${CurrencyUtils.formatRaw(item.y)}\n'
+                'Başlangıca göre $changeLabel',
                 const TextStyle(
                   color: Colors.white,
                   fontSize: 11,
@@ -1506,7 +1588,7 @@ class _PortfolioHistoryLineChart extends StatelessWidget {
             color: accent,
             barWidth: 3,
             isStrokeCapRound: true,
-            dotData: FlDotData(show: points.length <= 12),
+            dotData: FlDotData(show: points.length <= 16),
             belowBarData: BarAreaData(
               show: true,
               color: accent.withValues(alpha: 0.10),
@@ -1515,12 +1597,6 @@ class _PortfolioHistoryLineChart extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  double _interval(double min, double max) {
-    final range = max - min;
-    if (range <= 0) return 1;
-    return range / 3;
   }
 
   double _bottomInterval(int count) {
@@ -1532,16 +1608,8 @@ class _PortfolioHistoryLineChart extends StatelessWidget {
     return 60;
   }
 
-  String _shortMoney(double value) {
-    final abs = value.abs();
-    final prefix = CurrencyUtils.symbol(displayCurrency);
-    if (abs >= 1000000000) {
-      return '$prefix${(value / 1000000000).toStringAsFixed(1)}B';
-    }
-    if (abs >= 1000000) {
-      return '$prefix${(value / 1000000).toStringAsFixed(1)}M';
-    }
-    if (abs >= 1000) return '$prefix${(value / 1000).toStringAsFixed(0)}K';
-    return '$prefix${value.round()}';
+  String _formatSignedPercent(double value) {
+    final decimals = value.abs() >= 10 ? 1 : 2;
+    return '${value >= 0 ? '+' : ''}${value.toStringAsFixed(decimals)}%';
   }
 }

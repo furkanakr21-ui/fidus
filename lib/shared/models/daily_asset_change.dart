@@ -29,6 +29,11 @@ class DailyAssetChange {
         '${CurrencyUtils.formatRaw(value)}';
   }
 
+  String formatPercent() {
+    final prefix = percent >= 0 ? '+' : '';
+    return '$prefix${percent.toStringAsFixed(2)}%';
+  }
+
   static DailyAssetChange calculate({
     required double currentValueTry,
     required PortfolioAssetValueSnapshot? snapshot,

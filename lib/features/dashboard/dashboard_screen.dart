@@ -662,6 +662,8 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
+        const SizedBox(height: 8),
+        _buildDailyChangeInfo(isDark),
         const SizedBox(height: 12),
         // Distribution color bar
         if (totalVal > 0) ...[
@@ -703,6 +705,41 @@ class DashboardScreen extends ConsumerWidget {
           );
         }),
       ],
+    );
+  }
+
+  Widget _buildDailyChangeInfo(bool isDark) {
+    final secondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: isDark ? 0.07 : 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.schedule_rounded, size: 14, color: secondary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Günlük değişimler 00.00 portföy değerine göre hesaplanır.',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: secondary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -824,20 +861,36 @@ class DashboardScreen extends ConsumerWidget {
             ),
             children: [
               Divider(height: 1, color: border, indent: 16, endIndent: 16),
-              ...assets.map(
-                (a) => _buildAssetRow(
-                  context,
-                  isDark,
-                  a,
-                  cat.color,
-                  dailyAssetChanges[a.symbol],
-                  displayCurrency,
-                ),
-              ),
+              ...assets.asMap().entries.expand((entry) {
+                final index = entry.key;
+                final asset = entry.value;
+                return [
+                  _buildAssetRow(
+                    context,
+                    isDark,
+                    asset,
+                    cat.color,
+                    dailyAssetChanges[asset.symbol],
+                    displayCurrency,
+                  ),
+                  if (index < assets.length - 1) _buildAssetRowDivider(border),
+                ];
+              }),
               const SizedBox(height: 6),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildAssetRowDivider(Color border) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 68, right: 16),
+      child: Divider(
+        height: 1,
+        thickness: 1,
+        color: border.withValues(alpha: 0.62),
       ),
     );
   }
@@ -852,12 +905,16 @@ class DashboardScreen extends ConsumerWidget {
   ) {
     final isDailyReady = dailyChange?.hasPortfolioSnapshot ?? false;
     final isProfit = dailyChange?.isProfit ?? true;
+    final secondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
     final plColor = !isDailyReady
-        ? (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)
+        ? secondary
         : isProfit
         ? AppColors.profit
         : AppColors.loss;
-    final dailyText = _dailyAssetChangeText(dailyChange);
+    final dailyPercentText = _dailyAssetPercentText(dailyChange);
+    final dailyAmountText = _dailyAssetAmountText(dailyChange);
     final sym = asset.symbol.length > 6
         ? asset.symbol.substring(0, 6)
         : asset.symbol;
@@ -902,12 +959,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 Text(
                   '$qty adet',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
-                  ),
+                  style: TextStyle(fontSize: 11, color: secondary),
                 ),
               ],
             ),
@@ -923,30 +975,29 @@ class DashboardScreen extends ConsumerWidget {
                   color: isDark ? AppColors.darkText : AppColors.lightText,
                 ),
               ),
+              const SizedBox(height: 3),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 118),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: plColor.withValues(alpha: isDailyReady ? 0.1 : 0.07),
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      dailyText,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: plColor,
+                constraints: const BoxConstraints(maxWidth: 150),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: _dailyAssetBadge(
+                        dailyAmountText,
+                        plColor,
+                        isDailyReady,
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: _dailyAssetBadge(
+                        dailyPercentText,
+                        plColor,
+                        isDailyReady,
+                        strong: true,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -956,12 +1007,42 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  String _dailyAssetChangeText(DailyAssetChange? change) {
+  Widget _dailyAssetBadge(
+    String text,
+    Color color,
+    bool isReady, {
+    bool strong = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isReady ? 0.10 : 0.06),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: isReady ? 0.16 : 0)),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: strong ? FontWeight.w800 : FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  String _dailyAssetPercentText(DailyAssetChange? change) {
     if (change == null || !change.hasPortfolioSnapshot) return '--';
-    final amount = change.formatAmount();
-    if (!change.hasAssetSnapshot && change.baselineValue == 0) return amount;
-    final percentPrefix = change.percent >= 0 ? '+' : '';
-    return '$amount · $percentPrefix${change.percent.toStringAsFixed(2)}%';
+    if (!change.hasAssetSnapshot && change.baselineValue == 0) return 'Yeni';
+    return change.formatPercent();
+  }
+
+  String _dailyAssetAmountText(DailyAssetChange? change) {
+    if (change == null || !change.hasPortfolioSnapshot) return 'Bekleniyor';
+    return change.formatAmount();
   }
 
   // ─────────────── Recent Cashflows ───────────────

@@ -104,4 +104,16 @@ void main() {
       expect(change.percent, 0);
     },
   );
+
+  test('formats amount and percent separately for asset row badges', () {
+    final change = DailyAssetChange.calculate(
+      currentValueTry: 4250,
+      snapshot: _snapshot(valueTry: 4000),
+      hasPortfolioSnapshot: true,
+      displayCurrency: 'TRY',
+    );
+
+    expect(change.formatPercent(), '+6.25%');
+    expect(change.formatAmount(), '+₺250');
+  });
 }
