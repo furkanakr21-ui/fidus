@@ -104,6 +104,10 @@ create index if not exists market_data_runs_source_started_idx
 
 alter table public.market_data_runs enable row level security;
 
+grant select on table public.market_data_runs to authenticated;
+grant all privileges on table public.market_data_runs to service_role;
+grant usage, select on sequence public.market_data_runs_id_seq to service_role;
+
 -- Service role bypasses RLS. Authenticated read is useful for an internal
 -- settings/health screen without exposing secrets.
 do $$ begin

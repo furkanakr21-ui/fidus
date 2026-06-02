@@ -27,5 +27,8 @@ create index if not exists cron_runs_started_at_idx
 -- Row Level Security: sadece service role yazabilir/okuyabilir
 alter table public.cron_runs enable row level security;
 
+grant all privileges on table public.cron_runs to service_role;
+grant usage, select on sequence public.cron_runs_id_seq to service_role;
+
 -- Doğrulama
 select count(*) as cron_runs_row_count from public.cron_runs;

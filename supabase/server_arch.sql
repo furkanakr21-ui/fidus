@@ -26,6 +26,9 @@ create index if not exists asset_metadata_name_lower_idx on public.asset_metadat
 
 alter table public.asset_metadata enable row level security;
 
+grant select on table public.asset_metadata to anon, authenticated;
+grant all privileges on table public.asset_metadata to service_role;
+
 do $$ begin
   if not exists (
     select 1 from pg_policies where tablename = 'asset_metadata' and policyname = 'asset_metadata herkes okuyabilir'

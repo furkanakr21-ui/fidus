@@ -31,6 +31,9 @@ end $$;
 
 alter table public.prices enable row level security;
 
+grant select on table public.prices to anon, authenticated;
+grant all privileges on table public.prices to service_role;
+
 do $$ begin
   if not exists (
     select 1 from pg_policies
@@ -66,6 +69,9 @@ do $$ begin
 end $$;
 
 alter table public.exchange_rates enable row level security;
+
+grant select on table public.exchange_rates to anon, authenticated;
+grant all privileges on table public.exchange_rates to service_role;
 
 do $$ begin
   if not exists (
