@@ -1,4 +1,4 @@
-package com.example.fidus
+package com.logifin.fidus
 
 import io.flutter.embedding.android.FlutterActivity
 
