@@ -9,6 +9,7 @@ import '../../shared/models/income_expense_model.dart';
 import '../../shared/models/goal_model.dart';
 import '../../shared/providers.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../funds/tefas_browser_screen.dart';
 
 const _budgetTabIndex = 2;
 const _goalsTabIndex = 3;
@@ -101,6 +102,8 @@ class DashboardScreen extends ConsumerWidget {
                         topGainer,
                         displayCurrency,
                       ),
+                      const SizedBox(height: 14),
+                      _buildFundDiscoveryCard(context, isDark),
                     ],
                   ),
                 ),
@@ -460,6 +463,133 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  // ─────────────── Fund Discovery CTA ───────────────
+  Widget _buildFundDiscoveryCard(BuildContext context, bool isDark) {
+    final border = isDark ? const Color(0xFF21314A) : AppColors.lightBorder;
+    final bg = isDark ? const Color(0xFF0C1524) : AppColors.lightCard;
+    final titleColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final subtitleColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              settings: const RouteSettings(name: '/tefas-browser'),
+              builder: (_) => const TefasBrowserScreen(),
+            ),
+          );
+        },
+        child: Ink(
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: border),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(
+                  alpha: isDark ? 0.10 : 0.08,
+                ),
+                blurRadius: 28,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -34,
+                top: -44,
+                bottom: -30,
+                child: Container(
+                  width: 170,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.primary.withValues(
+                          alpha: isDark ? 0.24 : 0.13,
+                        ),
+                        AppColors.primary.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Icon(
+                        Icons.account_balance_outlined,
+                        color: isDark ? AppColors.darkBackground : Colors.white,
+                        size: 29,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'TEFAS ve BES Fonlarını Keşfet',
+                            style: TextStyle(
+                              color: titleColor,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                              height: 1.15,
+                              letterSpacing: 0,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            '3.000+ fonu getiri ve riske göre karşılaştır',
+                            style: TextStyle(
+                              color: subtitleColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              height: 1.25,
+                              letterSpacing: 0,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      color: AppColors.primary,
+                      size: 30,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

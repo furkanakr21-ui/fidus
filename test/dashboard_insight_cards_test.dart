@@ -51,6 +51,16 @@ DailyAssetChange _change({required double amount, required double percent}) {
   );
 }
 
+class _RecordingNavigatorObserver extends NavigatorObserver {
+  final pushedRouteNames = <String?>[];
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    pushedRouteNames.add(route.settings.name);
+  }
+}
+
 void main() {
   testWidgets('dashboard shows monthly net flow and daily top gainer cards', (
     tester,
@@ -191,5 +201,52 @@ void main() {
     expect(find.text('Varlık'), findsNothing);
     expect(find.text('+₺500'), findsOneWidget);
     expect(find.text('+5.00%'), findsOneWidget);
+  });
+
+  testWidgets('fund discovery card opens the TEFAS browser route', (
+    tester,
+  ) async {
+    final observer = _RecordingNavigatorObserver();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activePortfolioProvider.overrideWithBuild(
+            (ref, notifier) => 'portfolio-1',
+          ),
+          assetsProvider.overrideWithBuild((ref, notifier) => [_asset('AAA')]),
+          priceLoadingProvider.overrideWithBuild((ref, notifier) => false),
+          priceUpdateProvider.overrideWithBuild((ref, notifier) => null),
+          cashflowProvider.overrideWithBuild((ref, notifier) => const []),
+          goalsProvider.overrideWithBuild((ref, notifier) => const []),
+          currencyProvider.overrideWithBuild((ref, notifier) => 'TRY'),
+          dailyPortfolioChangeProvider.overrideWithValue(
+            const DailyPortfolioChange(
+              hasSnapshot: false,
+              currentValue: 0,
+              baselineValue: 0,
+              amount: 0,
+              percent: 0,
+              displayCurrency: 'TRY',
+            ),
+          ),
+          dailyAssetChangesProvider.overrideWithValue(const {}),
+        ],
+        child: MaterialApp(
+          navigatorObservers: [observer],
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    expect(find.text('TEFAS ve BES Fonlarını Keşfet'), findsOneWidget);
+    expect(
+      find.text('3.000+ fonu getiri ve riske göre karşılaştır'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('TEFAS ve BES Fonlarını Keşfet'));
+
+    expect(observer.pushedRouteNames, contains('/tefas-browser'));
   });
 }
