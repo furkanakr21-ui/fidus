@@ -154,4 +154,42 @@ void main() {
     expect(find.text('Bugünün Lideri'), findsOneWidget);
     expect(find.text('Bekleniyor'), findsWidgets);
   });
+
+  testWidgets('dashboard top area avoids duplicated cost and daily stats', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activePortfolioProvider.overrideWithBuild(
+            (ref, notifier) => 'portfolio-1',
+          ),
+          assetsProvider.overrideWithBuild((ref, notifier) => [_asset('AAA')]),
+          priceLoadingProvider.overrideWithBuild((ref, notifier) => false),
+          priceUpdateProvider.overrideWithBuild((ref, notifier) => null),
+          cashflowProvider.overrideWithBuild((ref, notifier) => const []),
+          goalsProvider.overrideWithBuild((ref, notifier) => const []),
+          currencyProvider.overrideWithBuild((ref, notifier) => 'TRY'),
+          dailyPortfolioChangeProvider.overrideWithValue(
+            const DailyPortfolioChange(
+              hasSnapshot: true,
+              currentValue: 10500,
+              baselineValue: 10000,
+              amount: 500,
+              percent: 5,
+              displayCurrency: 'TRY',
+            ),
+          ),
+          dailyAssetChangesProvider.overrideWithValue(const {}),
+        ],
+        child: const MaterialApp(home: DashboardScreen()),
+      ),
+    );
+
+    expect(find.text('Maliyet'), findsNothing);
+    expect(find.text('Yatırım'), findsNothing);
+    expect(find.text('Varlık'), findsNothing);
+    expect(find.text('+₺500'), findsOneWidget);
+    expect(find.text('+5.00%'), findsOneWidget);
+  });
 }

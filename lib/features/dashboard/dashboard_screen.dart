@@ -20,7 +20,6 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final merged = ref.watch(mergedAssetsProvider);
     final totalValue = ref.watch(totalValueProvider);
-    final totalCost = ref.watch(totalCostProvider);
     final dailyChange = ref.watch(dailyPortfolioChangeProvider);
     final dailyAssetChanges = ref.watch(dailyAssetChangesProvider);
     ref.watch(priceUpdateProvider);
@@ -92,16 +91,6 @@ class DashboardScreen extends ConsumerWidget {
                         isDark,
                         totalValue,
                         dailyChange,
-                        totalCost,
-                        displayCurrency,
-                      ),
-                      const SizedBox(height: 14),
-                      _buildStatsStrip(
-                        context,
-                        isDark,
-                        dailyChange,
-                        totalCost,
-                        merged.length,
                         displayCurrency,
                       ),
                       const SizedBox(height: 12),
@@ -257,7 +246,6 @@ class DashboardScreen extends ConsumerWidget {
     bool isDark,
     double totalValue,
     DailyPortfolioChange dailyChange,
-    double totalCost,
     String displayCurrency,
   ) {
     final isProfit = dailyChange.isProfit;
@@ -267,9 +255,6 @@ class DashboardScreen extends ConsumerWidget {
     final dailyAmountText = dailyChange.hasSnapshot
         ? dailyChange.formatAmount()
         : 'İlk kayıt bekleniyor';
-    final dailyMetricText = dailyChange.hasSnapshot
-        ? dailyChange.formatAmount(absolute: true)
-        : 'Bekleniyor';
     final dailyPercentText = dailyChange.hasSnapshot
         ? '${isProfit ? '+' : ''}${dailyChange.percent.toStringAsFixed(2)}%'
         : '--';
@@ -403,23 +388,6 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  height: 1,
-                  color: Colors.white.withValues(alpha: 0.1),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    _heroStat(
-                      'Maliyet',
-                      CurrencyUtils.format(totalCost, displayCurrency),
-                    ),
-                    _heroDivider(),
-                    _heroStat('Bugün', dailyMetricText, color: plColor),
-                  ],
-                ),
               ],
             ),
           ),
@@ -427,40 +395,6 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
-
-  Widget _heroStat(String label, String value, {Color? color}) => Expanded(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.45),
-            fontSize: 10,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          value,
-          style: TextStyle(
-            color: color ?? Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    ),
-  );
-
-  Widget _heroDivider() => Container(
-    width: 1,
-    height: 30,
-    margin: const EdgeInsets.symmetric(horizontal: 16),
-    color: Colors.white.withValues(alpha: 0.12),
-  );
 
   String _formatSignedAmount(double tryAmount, String displayCurrency) {
     final prefix = tryAmount > 0
@@ -471,69 +405,6 @@ class DashboardScreen extends ConsumerWidget {
     final converted = CurrencyUtils.fromTry(tryAmount.abs(), displayCurrency);
     return '$prefix${CurrencyUtils.symbol(displayCurrency)}'
         '${CurrencyUtils.formatRaw(converted)}';
-  }
-
-  // ─────────────── Stats Strip ───────────────
-  Widget _buildStatsStrip(
-    BuildContext context,
-    bool isDark,
-    DailyPortfolioChange dailyChange,
-    double totalCost,
-    int assetCount,
-    String displayCurrency,
-  ) {
-    final isProfit = dailyChange.isProfit;
-    final dailyColor = dailyChange.hasSnapshot
-        ? (isProfit ? AppColors.profit : AppColors.loss)
-        : AppColors.gold;
-    final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            icon: dailyChange.hasSnapshot
-                ? (isProfit
-                      ? Icons.trending_up_rounded
-                      : Icons.trending_down_rounded)
-                : Icons.schedule_rounded,
-            label: 'Bugün',
-            value: dailyChange.hasSnapshot
-                ? dailyChange.formatAmount()
-                : 'Bekleniyor',
-            accentColor: dailyColor,
-            bg: bg,
-            border: border,
-            isDark: isDark,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.receipt_long_outlined,
-            label: 'Yatırım',
-            value: CurrencyUtils.format(totalCost, displayCurrency),
-            accentColor: AppColors.gold,
-            bg: bg,
-            border: border,
-            isDark: isDark,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.layers_outlined,
-            label: 'Varlık',
-            value: '$assetCount adet',
-            accentColor: AppColors.primary,
-            bg: bg,
-            border: border,
-            isDark: isDark,
-          ),
-        ),
-      ],
-    );
   }
 
   // ─────────────── Insight Strip ───────────────
@@ -1493,78 +1364,6 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ─────────────── Stat Card Widget ───────────────
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color accentColor;
-  final Color bg;
-  final Color border;
-  final bool isDark;
-
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.accentColor,
-    required this.bg,
-    required this.border,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 13),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [accentColor.withValues(alpha: 0.09), bg],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(icon, color: accentColor, size: 15),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-              color: isDark ? AppColors.darkText : AppColors.lightText,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: isDark
-                  ? AppColors.darkTextSecondary
-                  : AppColors.lightTextSecondary,
-            ),
-          ),
-        ],
       ),
     );
   }

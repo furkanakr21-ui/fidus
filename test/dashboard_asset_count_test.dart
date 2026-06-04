@@ -27,7 +27,7 @@ AssetModel _asset({
 }
 
 void main() {
-  testWidgets('dashboard asset statistic counts merged assets', (tester) async {
+  testWidgets('dashboard category count uses merged assets', (tester) async {
     final rawLots = [
       _asset(id: 'asset-1', quantity: 1, buyPrice: 250),
       _asset(id: 'asset-2', quantity: 2, buyPrice: 275),
@@ -61,7 +61,7 @@ void main() {
       ),
     );
 
-    expect(find.text('1 adet'), findsOneWidget);
-    expect(find.text('2 adet'), findsNothing);
+    expect(find.text('1 varlık'), findsOneWidget);
+    expect(find.text('2 varlık'), findsNothing);
   });
 }
