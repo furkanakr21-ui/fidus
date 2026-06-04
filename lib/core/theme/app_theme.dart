@@ -1,61 +1,82 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
+  static const String fontFamily = 'Plus Jakarta Sans';
+
+  static TextStyle _font({
+    required Color color,
+    required FontWeight fontWeight,
+    double? fontSize,
+    double? letterSpacing,
+  }) {
+    return TextStyle(
+      fontFamily: fontFamily,
+      color: color,
+      fontWeight: fontWeight,
+      fontSize: fontSize,
+      letterSpacing: letterSpacing,
+    );
+  }
+
   static TextTheme _buildTextTheme({required bool isDark}) {
     final base = isDark ? AppColors.darkText : AppColors.lightText;
     final secondary = isDark
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
-    return GoogleFonts.plusJakartaSansTextTheme().copyWith(
-      displayLarge: GoogleFonts.plusJakartaSans(
-        color: base,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -1.5,
-      ),
-      displayMedium: GoogleFonts.plusJakartaSans(
-        color: base,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -1.0,
-      ),
-      headlineLarge: GoogleFonts.plusJakartaSans(
-        color: base,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.5,
-      ),
-      titleLarge: GoogleFonts.plusJakartaSans(
-        color: base,
-        fontWeight: FontWeight.w700,
-        fontSize: 18,
-      ),
-      titleMedium: GoogleFonts.plusJakartaSans(
-        color: base,
-        fontWeight: FontWeight.w600,
-        fontSize: 15,
-      ),
-      bodyLarge: GoogleFonts.plusJakartaSans(
-        color: base,
-        fontWeight: FontWeight.w500,
-        fontSize: 14,
-      ),
-      bodyMedium: GoogleFonts.plusJakartaSans(
-        color: secondary,
-        fontWeight: FontWeight.w400,
-        fontSize: 12,
-      ),
-      labelLarge: GoogleFonts.plusJakartaSans(
-        color: base,
-        fontWeight: FontWeight.w600,
-        fontSize: 13,
-      ),
-      labelSmall: GoogleFonts.plusJakartaSans(
-        color: secondary,
-        fontWeight: FontWeight.w500,
-        fontSize: 10,
-        letterSpacing: 0.5,
-      ),
-    );
+    final textTheme = isDark
+        ? Typography.material2021().white
+        : Typography.material2021().black;
+    return textTheme
+        .apply(fontFamily: fontFamily)
+        .copyWith(
+          displayLarge: _font(
+            color: base,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1.5,
+          ),
+          displayMedium: _font(
+            color: base,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -1.0,
+          ),
+          headlineLarge: _font(
+            color: base,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+          ),
+          titleLarge: _font(
+            color: base,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+          titleMedium: _font(
+            color: base,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+          bodyLarge: _font(
+            color: base,
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+          bodyMedium: _font(
+            color: secondary,
+            fontWeight: FontWeight.w400,
+            fontSize: 12,
+          ),
+          labelLarge: _font(
+            color: base,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+          labelSmall: _font(
+            color: secondary,
+            fontWeight: FontWeight.w500,
+            fontSize: 10,
+            letterSpacing: 0.5,
+          ),
+        );
   }
 
   static ThemeData get light => ThemeData(
@@ -85,7 +106,7 @@ class AppTheme {
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      titleTextStyle: GoogleFonts.plusJakartaSans(
+      titleTextStyle: _font(
         color: AppColors.lightText,
         fontSize: 22,
         fontWeight: FontWeight.w800,
@@ -126,7 +147,8 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-        textStyle: GoogleFonts.plusJakartaSans(
+        textStyle: _font(
+          color: Colors.white,
           fontWeight: FontWeight.w700,
           fontSize: 14,
         ),
@@ -138,7 +160,8 @@ class AppTheme {
         side: const BorderSide(color: AppColors.primary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-        textStyle: GoogleFonts.plusJakartaSans(
+        textStyle: _font(
+          color: AppColors.primary,
           fontWeight: FontWeight.w700,
           fontSize: 14,
         ),
@@ -173,7 +196,7 @@ class AppTheme {
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      titleTextStyle: GoogleFonts.plusJakartaSans(
+      titleTextStyle: _font(
         color: AppColors.darkText,
         fontSize: 22,
         fontWeight: FontWeight.w800,
@@ -214,7 +237,8 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-        textStyle: GoogleFonts.plusJakartaSans(
+        textStyle: _font(
+          color: const Color(0xFF001A14),
           fontWeight: FontWeight.w700,
           fontSize: 14,
         ),
@@ -226,7 +250,8 @@ class AppTheme {
         side: const BorderSide(color: AppColors.primary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-        textStyle: GoogleFonts.plusJakartaSans(
+        textStyle: _font(
+          color: AppColors.primary,
           fontWeight: FontWeight.w700,
           fontSize: 14,
         ),
