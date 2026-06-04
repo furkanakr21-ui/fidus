@@ -17,7 +17,6 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final assets = ref.watch(assetsProvider);
     final merged = ref.watch(mergedAssetsProvider);
     final totalValue = ref.watch(totalValueProvider);
     final totalCost = ref.watch(totalCostProvider);
@@ -93,7 +92,7 @@ class DashboardScreen extends ConsumerWidget {
                         isDark,
                         dailyChange,
                         totalCost,
-                        assets.length,
+                        merged.length,
                         displayCurrency,
                       ),
                     ],
