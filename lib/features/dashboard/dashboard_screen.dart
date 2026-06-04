@@ -478,7 +478,7 @@ class DashboardScreen extends ConsumerWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(22),
         onTap: () {
           Navigator.push(
             context,
@@ -491,7 +491,7 @@ class DashboardScreen extends ConsumerWidget {
         child: Ink(
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(color: border),
             boxShadow: [
               BoxShadow(
@@ -526,25 +526,25 @@ class DashboardScreen extends ConsumerWidget {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 18,
+                  horizontal: 16,
+                  vertical: 12,
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 58,
-                      height: 58,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
                         Icons.account_balance_outlined,
                         color: isDark ? AppColors.darkBackground : Colors.white,
-                        size: 29,
+                        size: 23,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 13),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,7 +553,7 @@ class DashboardScreen extends ConsumerWidget {
                             'TEFAS ve BES Fonlarını Keşfet',
                             style: TextStyle(
                               color: titleColor,
-                              fontSize: 19,
+                              fontSize: 16,
                               fontWeight: FontWeight.w800,
                               height: 1.15,
                               letterSpacing: 0,
@@ -566,7 +566,7 @@ class DashboardScreen extends ConsumerWidget {
                             '3.000+ fonu getiri ve riske göre karşılaştır',
                             style: TextStyle(
                               color: subtitleColor,
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                               height: 1.25,
                               letterSpacing: 0,
@@ -577,11 +577,11 @@ class DashboardScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Icon(
                       Icons.arrow_forward_rounded,
                       color: AppColors.primary,
-                      size: 30,
+                      size: 24,
                     ),
                   ],
                 ),
@@ -1524,8 +1524,8 @@ class _InsightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 92),
-      padding: const EdgeInsets.all(14),
+      constraints: const BoxConstraints(minHeight: 78),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(18),
@@ -1542,15 +1542,15 @@ class _InsightCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               color: accentColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: accentColor, size: 17),
+            child: Icon(icon, color: accentColor, size: 15),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 9),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1571,7 +1571,7 @@ class _InsightCard extends StatelessWidget {
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0,
                     color: isDark ? AppColors.darkText : AppColors.lightText,
@@ -1583,7 +1583,7 @@ class _InsightCard extends StatelessWidget {
                 Text(
                   detail,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                     color: accentColor,
                   ),
