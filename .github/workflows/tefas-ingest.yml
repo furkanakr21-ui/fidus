@@ -41,5 +41,5 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEFAS_REQUEST_INTERVAL_SECONDS: "10"
           TEFAS_LOOKBACK_DAYS: "7"
-          TEFAS_SKIP_IF_SUCCESS_WITHIN_MINUTES: "30"
+          TEFAS_SKIP_IF_SUCCESS_WITHIN_MINUTES: "10"
         run: python workers/tefas_ingest/tefas_ingest.py
