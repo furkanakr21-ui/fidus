@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/asset_model.dart';
+import '../../shared/models/dashboard_insights.dart';
 import '../../shared/models/daily_asset_change.dart';
 import '../../shared/models/daily_portfolio_change.dart';
 import '../../shared/models/income_expense_model.dart';
@@ -28,6 +29,14 @@ class DashboardScreen extends ConsumerWidget {
     final displayCurrency = ref.watch(currencyProvider);
     final isLoading = ref.watch(priceLoadingProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final monthlyNetFlow = MonthlyNetCashFlow.calculate(
+      cashflows: cashflows,
+      month: DateTime.now(),
+    );
+    final topGainer = DailyTopAssetGainer.select(
+      assets: merged,
+      changes: dailyAssetChanges,
+    );
 
     final lastUpdate = ref.watch(priceUpdateProvider);
     final updateStr = isLoading
@@ -93,6 +102,14 @@ class DashboardScreen extends ConsumerWidget {
                         dailyChange,
                         totalCost,
                         merged.length,
+                        displayCurrency,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildInsightStrip(
+                        context,
+                        isDark,
+                        monthlyNetFlow,
+                        topGainer,
                         displayCurrency,
                       ),
                     ],
@@ -445,6 +462,17 @@ class DashboardScreen extends ConsumerWidget {
     color: Colors.white.withValues(alpha: 0.12),
   );
 
+  String _formatSignedAmount(double tryAmount, String displayCurrency) {
+    final prefix = tryAmount > 0
+        ? '+'
+        : tryAmount < 0
+        ? '-'
+        : '';
+    final converted = CurrencyUtils.fromTry(tryAmount.abs(), displayCurrency);
+    return '$prefix${CurrencyUtils.symbol(displayCurrency)}'
+        '${CurrencyUtils.formatRaw(converted)}';
+  }
+
   // ─────────────── Stats Strip ───────────────
   Widget _buildStatsStrip(
     BuildContext context,
@@ -499,6 +527,62 @@ class DashboardScreen extends ConsumerWidget {
             label: 'Varlık',
             value: '$assetCount adet',
             accentColor: AppColors.primary,
+            bg: bg,
+            border: border,
+            isDark: isDark,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─────────────── Insight Strip ───────────────
+  Widget _buildInsightStrip(
+    BuildContext context,
+    bool isDark,
+    MonthlyNetCashFlow monthlyNetFlow,
+    DailyTopAssetGainer? topGainer,
+    String displayCurrency,
+  ) {
+    final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final netColor = monthlyNetFlow.netTry > 0
+        ? AppColors.profit
+        : monthlyNetFlow.netTry < 0
+        ? AppColors.loss
+        : AppColors.gold;
+    final leaderColor = topGainer == null ? AppColors.gold : AppColors.profit;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _InsightCard(
+            icon: monthlyNetFlow.netTry >= 0
+                ? Icons.south_west_rounded
+                : Icons.north_east_rounded,
+            label: 'Bu Ay Net Akış',
+            value: _formatSignedAmount(monthlyNetFlow.netTry, displayCurrency),
+            detail: monthlyNetFlow.count == 0
+                ? 'Kayıt yok'
+                : '${monthlyNetFlow.count} hareket',
+            accentColor: netColor,
+            bg: bg,
+            border: border,
+            isDark: isDark,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _InsightCard(
+            icon: topGainer == null
+                ? Icons.schedule_rounded
+                : Icons.trending_up_rounded,
+            label: 'Bugünün Lideri',
+            value: topGainer?.asset.symbol ?? 'Bekleniyor',
+            detail: topGainer == null
+                ? 'Veri bekleniyor'
+                : '${topGainer.change.formatPercent()} · ${topGainer.change.formatAmount()}',
+            accentColor: leaderColor,
             bg: bg,
             border: border,
             isDark: isDark,
@@ -1478,6 +1562,106 @@ class _StatCard extends StatelessWidget {
               color: isDark
                   ? AppColors.darkTextSecondary
                   : AppColors.lightTextSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────── Insight Card Widget ───────────────
+class _InsightCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final String detail;
+  final Color accentColor;
+  final Color bg;
+  final Color border;
+  final bool isDark;
+
+  const _InsightCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.detail,
+    required this.accentColor,
+    required this.bg,
+    required this.border,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 92),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: border),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: isDark ? 0.08 : 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: accentColor, size: 17),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  detail,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: accentColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],

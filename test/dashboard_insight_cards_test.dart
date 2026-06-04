@@ -1,0 +1,157 @@
+import 'package:fidus/features/dashboard/dashboard_screen.dart';
+import 'package:fidus/shared/models/asset_model.dart';
+import 'package:fidus/shared/models/daily_asset_change.dart';
+import 'package:fidus/shared/models/daily_portfolio_change.dart';
+import 'package:fidus/shared/models/income_expense_model.dart';
+import 'package:fidus/shared/providers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+AssetModel _asset(String symbol) {
+  return AssetModel(
+    id: symbol,
+    portfolioId: 'portfolio-1',
+    name: symbol,
+    symbol: symbol,
+    type: AssetType.stock,
+    quantity: 1,
+    buyPrice: 100,
+    currentPrice: 100,
+    buyDate: DateTime(2026, 6, 1),
+  );
+}
+
+CashFlowModel _cashflow({
+  required String id,
+  required CashFlowType type,
+  required double amount,
+  required DateTime date,
+}) {
+  return CashFlowModel(
+    id: id,
+    portfolioId: 'portfolio-1',
+    title: id,
+    amount: amount,
+    currency: 'TRY',
+    type: type,
+    date: date,
+  );
+}
+
+DailyAssetChange _change({required double amount, required double percent}) {
+  return DailyAssetChange(
+    hasPortfolioSnapshot: true,
+    hasAssetSnapshot: true,
+    currentValue: 0,
+    baselineValue: 0,
+    amount: amount,
+    percent: percent,
+    displayCurrency: 'TRY',
+  );
+}
+
+void main() {
+  testWidgets('dashboard shows monthly net flow and daily top gainer cards', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activePortfolioProvider.overrideWithBuild(
+            (ref, notifier) => 'portfolio-1',
+          ),
+          assetsProvider.overrideWithBuild(
+            (ref, notifier) => [_asset('AAA'), _asset('BBB')],
+          ),
+          priceLoadingProvider.overrideWithBuild((ref, notifier) => false),
+          priceUpdateProvider.overrideWithBuild((ref, notifier) => null),
+          cashflowProvider.overrideWithBuild(
+            (ref, notifier) => [
+              _cashflow(
+                id: 'deposit',
+                type: CashFlowType.deposit,
+                amount: 5000,
+                date: DateTime(now.year, now.month, 5),
+              ),
+              _cashflow(
+                id: 'withdrawal',
+                type: CashFlowType.withdrawal,
+                amount: 2000,
+                date: DateTime(now.year, now.month, 6),
+              ),
+              _cashflow(
+                id: 'previous-month',
+                type: CashFlowType.deposit,
+                amount: 9000,
+                date: DateTime(now.year, now.month - 1, 20),
+              ),
+            ],
+          ),
+          goalsProvider.overrideWithBuild((ref, notifier) => const []),
+          currencyProvider.overrideWithBuild((ref, notifier) => 'TRY'),
+          dailyPortfolioChangeProvider.overrideWithValue(
+            const DailyPortfolioChange(
+              hasSnapshot: false,
+              currentValue: 0,
+              baselineValue: 0,
+              amount: 0,
+              percent: 0,
+              displayCurrency: 'TRY',
+            ),
+          ),
+          dailyAssetChangesProvider.overrideWithValue({
+            'AAA': _change(amount: 300, percent: 2),
+            'BBB': _change(amount: 100, percent: 5),
+          }),
+        ],
+        child: const MaterialApp(home: DashboardScreen()),
+      ),
+    );
+
+    expect(find.text('Bu Ay Net Akış'), findsOneWidget);
+    expect(find.text('+₺3.000'), findsOneWidget);
+    expect(find.text('Bugünün Lideri'), findsOneWidget);
+    expect(find.text('BBB'), findsOneWidget);
+    expect(find.textContaining('+5.00%'), findsOneWidget);
+  });
+
+  testWidgets('dashboard insight cards show stable empty states', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activePortfolioProvider.overrideWithBuild(
+            (ref, notifier) => 'portfolio-1',
+          ),
+          assetsProvider.overrideWithBuild((ref, notifier) => [_asset('AAA')]),
+          priceLoadingProvider.overrideWithBuild((ref, notifier) => false),
+          priceUpdateProvider.overrideWithBuild((ref, notifier) => null),
+          cashflowProvider.overrideWithBuild((ref, notifier) => const []),
+          goalsProvider.overrideWithBuild((ref, notifier) => const []),
+          currencyProvider.overrideWithBuild((ref, notifier) => 'TRY'),
+          dailyPortfolioChangeProvider.overrideWithValue(
+            const DailyPortfolioChange(
+              hasSnapshot: false,
+              currentValue: 0,
+              baselineValue: 0,
+              amount: 0,
+              percent: 0,
+              displayCurrency: 'TRY',
+            ),
+          ),
+          dailyAssetChangesProvider.overrideWithValue(const {}),
+        ],
+        child: const MaterialApp(home: DashboardScreen()),
+      ),
+    );
+
+    expect(find.text('Bu Ay Net Akış'), findsOneWidget);
+    expect(find.text('₺0'), findsOneWidget);
+    expect(find.text('Bugünün Lideri'), findsOneWidget);
+    expect(find.text('Bekleniyor'), findsWidgets);
+  });
+}
