@@ -203,6 +203,103 @@ void main() {
     expect(find.text('+5.00%'), findsOneWidget);
   });
 
+  testWidgets(
+    'dashboard feature cards clip decorative layers to rounded edges',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            activePortfolioProvider.overrideWithBuild(
+              (ref, notifier) => 'portfolio-1',
+            ),
+            assetsProvider.overrideWithBuild(
+              (ref, notifier) => [_asset('AAA')],
+            ),
+            priceLoadingProvider.overrideWithBuild((ref, notifier) => false),
+            priceUpdateProvider.overrideWithBuild((ref, notifier) => null),
+            cashflowProvider.overrideWithBuild((ref, notifier) => const []),
+            goalsProvider.overrideWithBuild((ref, notifier) => const []),
+            currencyProvider.overrideWithBuild((ref, notifier) => 'TRY'),
+            dailyPortfolioChangeProvider.overrideWithValue(
+              const DailyPortfolioChange(
+                hasSnapshot: false,
+                currentValue: 0,
+                baselineValue: 0,
+                amount: 0,
+                percent: 0,
+                displayCurrency: 'TRY',
+              ),
+            ),
+            dailyAssetChangesProvider.overrideWithValue(const {}),
+          ],
+          child: const MaterialApp(home: DashboardScreen()),
+        ),
+      );
+
+      final hero = tester.widget<Container>(
+        find.byKey(const Key('dashboard-hero-card')),
+      );
+      expect(hero.clipBehavior, Clip.antiAlias);
+
+      final insightCards = tester.widgetList<Container>(
+        find.byKey(const Key('dashboard-insight-card')),
+      );
+      expect(insightCards, hasLength(2));
+      expect(
+        insightCards.every((card) => card.clipBehavior == Clip.antiAlias),
+        isTrue,
+      );
+
+      final discovery = tester.widget<Material>(
+        find.byKey(const Key('dashboard-fund-discovery-card')),
+      );
+      expect(discovery.clipBehavior, Clip.antiAlias);
+    },
+  );
+
+  testWidgets('light dashboard hero uses the graphite jade identity gradient', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activePortfolioProvider.overrideWithBuild(
+            (ref, notifier) => 'portfolio-1',
+          ),
+          assetsProvider.overrideWithBuild((ref, notifier) => [_asset('AAA')]),
+          priceLoadingProvider.overrideWithBuild((ref, notifier) => false),
+          priceUpdateProvider.overrideWithBuild((ref, notifier) => null),
+          cashflowProvider.overrideWithBuild((ref, notifier) => const []),
+          goalsProvider.overrideWithBuild((ref, notifier) => const []),
+          currencyProvider.overrideWithBuild((ref, notifier) => 'TRY'),
+          dailyPortfolioChangeProvider.overrideWithValue(
+            const DailyPortfolioChange(
+              hasSnapshot: false,
+              currentValue: 0,
+              baselineValue: 0,
+              amount: 0,
+              percent: 0,
+              displayCurrency: 'TRY',
+            ),
+          ),
+          dailyAssetChangesProvider.overrideWithValue(const {}),
+        ],
+        child: const MaterialApp(home: DashboardScreen()),
+      ),
+    );
+
+    final hero = tester.widget<Container>(
+      find.byKey(const Key('dashboard-hero-card')),
+    );
+    final decoration = hero.decoration! as BoxDecoration;
+    final gradient = decoration.gradient! as LinearGradient;
+    expect(gradient.colors, const [
+      Color(0xFF203B45),
+      Color(0xFF176B65),
+      Color(0xFF13917C),
+    ]);
+  });
+
   testWidgets('fund discovery card opens the TEFAS browser route', (
     tester,
   ) async {

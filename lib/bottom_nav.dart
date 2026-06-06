@@ -44,19 +44,25 @@ class BottomNav extends ConsumerWidget {
   }
 
   Widget _buildFab(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? AppColors.primary : AppColors.lightPrimary;
+    final accentDark = isDark
+        ? AppColors.primaryDark
+        : AppColors.lightPrimaryDark;
+
     return Container(
       width: 48,
       height: 48,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
+        gradient: LinearGradient(
+          colors: [accent, accentDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.38),
+            color: accent.withValues(alpha: 0.38),
             blurRadius: 18,
             spreadRadius: 0,
             offset: const Offset(0, 5),
@@ -279,8 +285,9 @@ class FidusBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final surfaceColor = isDark
-        ? AppColors.darkSurface.withValues(alpha: 0.68)
-        : Colors.white.withValues(alpha: 0.76);
+        ? AppColors.darkSurface.withValues(alpha: 0.07)
+        : Colors.white.withValues(alpha: 0.10);
+    final accent = isDark ? AppColors.primary : AppColors.lightPrimary;
 
     return SafeArea(
       top: false,
@@ -301,7 +308,7 @@ class FidusBottomNavigation extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(25),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: Container(
                 key: const Key('fidus-nav-surface'),
                 height: 50,
@@ -321,6 +328,7 @@ class FidusBottomNavigation extends StatelessWidget {
                         selectedIcon: item.$3,
                         isSelected: currentIndex == index,
                         isDark: isDark,
+                        accent: accent,
                         onTap: () => onTap(index),
                       ),
                     );
@@ -343,6 +351,7 @@ class _NavItem extends StatelessWidget {
   final IconData selectedIcon;
   final bool isSelected;
   final bool isDark;
+  final Color accent;
   final VoidCallback onTap;
 
   const _NavItem({
@@ -352,6 +361,7 @@ class _NavItem extends StatelessWidget {
     required this.selectedIcon,
     required this.isSelected,
     required this.isDark,
+    required this.accent,
     required this.onTap,
   });
 
@@ -380,7 +390,7 @@ class _NavItem extends StatelessWidget {
                   child: Icon(
                     isSelected ? selectedIcon : icon,
                     size: 20,
-                    color: isSelected ? AppColors.primary : inactive,
+                    color: isSelected ? accent : inactive,
                   ),
                 ),
               ),
@@ -392,11 +402,11 @@ class _NavItem extends StatelessWidget {
                     width: 20,
                     height: 2,
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: accent,
                       borderRadius: BorderRadius.circular(2),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.75),
+                          color: accent.withValues(alpha: 0.75),
                           blurRadius: 7,
                           offset: const Offset(0, -2),
                         ),

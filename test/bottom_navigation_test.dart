@@ -113,6 +113,31 @@ void main() {
     expect(decoration.borderRadius, BorderRadius.circular(25));
   });
 
+  testWidgets(
+    'bottom navigation glass stays highly translucent in both themes',
+    (tester) async {
+      for (final isDark in [true, false]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              bottomNavigationBar: FidusBottomNavigation(
+                currentIndex: 0,
+                isDark: isDark,
+                onTap: (_) {},
+              ),
+            ),
+          ),
+        );
+
+        final surface = tester.widget<Container>(
+          find.byKey(const Key('fidus-nav-surface')),
+        );
+        final decoration = surface.decoration! as BoxDecoration;
+        expect(decoration.color!.a, lessThanOrEqualTo(0.12));
+      }
+    },
+  );
+
   testWidgets('bottom navigation uses wallet icon and selected-only emphasis', (
     tester,
   ) async {
@@ -141,6 +166,25 @@ void main() {
       find.byKey(const Key('fidus-nav-selected-indicator-0')),
       findsNothing,
     );
+  });
+
+  testWidgets('light bottom navigation uses the graphite jade accent', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          bottomNavigationBar: FidusBottomNavigation(
+            currentIndex: 0,
+            isDark: false,
+            onTap: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    final selectedHome = tester.widget<Icon>(find.byIcon(Icons.home_rounded));
+    expect(selectedHome.color, AppColors.lightPrimary);
   });
 
   testWidgets(

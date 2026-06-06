@@ -5,6 +5,8 @@ class AppColors {
   // Elektrik firuze: canlı, yenilikçi, güven verici — fintech kimliği
   static const primary = Color(0xFF00CEAA);
   static const primaryDark = Color(0xFF00A88A);
+  static const lightPrimary = Color(0xFF087D6E);
+  static const lightPrimaryDark = Color(0xFF176B65);
 
   // ── Durum renkleri ───────────────────────────────────────────────
   // Kâr: saf dijital yeşil — başarı, büyüme (sarımsı değil, taze)
@@ -31,13 +33,12 @@ class AppColors {
   static const darkBorder = Color(0xFF1A2535);
 
   // ── Açık tema yüzeyleri ──────────────────────────────────────────
-  // Arkaplan: serin gri-mavi — saf beyazdan daha premium
-  static const lightBackground = Color(0xFFEFF3FA);
-  static const lightSurface = Color(0xFFFFFFFF);
-  // Kart: saf beyaz — arkaplanından net ayrım
-  static const lightCard = Color(0xFFFFFFFF);
-  // Metin: koyu lacivert — siyahtan daha nazik, daha premium
-  static const lightText = Color(0xFF0A1628);
-  static const lightTextSecondary = Color(0xFF5B6F87);
-  static const lightBorder = Color(0xFFDAE2EE);
+  // Hafif yesil-gri zemin ve kirik beyaz yuzeyler
+  static const lightBackground = Color(0xFFF1F4F4);
+  static const lightSurface = Color(0xFFFAFBFB);
+  static const lightCard = Color(0xFFFAFBFB);
+  // Grafit metinler ve sakin yesil-gri sinirlar
+  static const lightText = Color(0xFF142027);
+  static const lightTextSecondary = Color(0xFF687981);
+  static const lightBorder = Color(0xFFDCE3E4);
 }

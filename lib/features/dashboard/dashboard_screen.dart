@@ -157,6 +157,7 @@ class DashboardScreen extends ConsumerWidget {
         ? 'İyi günler'
         : 'İyi akşamlar';
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? AppColors.primary : AppColors.lightPrimary;
     final textSecondary = isDark
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
@@ -195,16 +196,16 @@ class DashboardScreen extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: isDark ? 0.12 : 0.09),
+            color: accent.withValues(alpha: isDark ? 0.12 : 0.09),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            border: Border.all(color: accent.withValues(alpha: 0.2)),
           ),
           child: Text(
             displayCurrency,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: AppColors.primary,
+              color: accent,
             ),
           ),
         ),
@@ -221,11 +222,11 @@ class DashboardScreen extends ConsumerWidget {
           width: 38,
           height: 38,
           child: isLoading
-              ? const Padding(
-                  padding: EdgeInsets.all(10),
+              ? Padding(
+                  padding: const EdgeInsets.all(10),
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: AppColors.primary,
+                    color: accent,
                   ),
                 )
               : IconButton(
@@ -251,6 +252,7 @@ class DashboardScreen extends ConsumerWidget {
     DailyPortfolioChange dailyChange,
     String displayCurrency,
   ) {
+    final accent = isDark ? AppColors.primary : AppColors.lightPrimary;
     final isProfit = dailyChange.isProfit;
     final plColor = dailyChange.hasSnapshot
         ? (isProfit ? AppColors.profit : AppColors.loss)
@@ -263,20 +265,27 @@ class DashboardScreen extends ConsumerWidget {
         : '--';
 
     return Container(
+      key: const Key('dashboard-hero-card'),
       width: double.infinity,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
           colors: isDark
               ? [const Color(0xFF0D1B2E), const Color(0xFF08201A)]
-              : [const Color(0xFF00705A), const Color(0xFF00CEAA)],
+              : [
+                  const Color(0xFF203B45),
+                  AppColors.lightPrimaryDark,
+                  const Color(0xFF13917C),
+                ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? const Color(0xFF0C1526) : AppColors.primary)
-                .withValues(alpha: isDark ? 0.6 : 0.3),
+            color: (isDark ? const Color(0xFF0C1526) : accent).withValues(
+              alpha: isDark ? 0.6 : 0.3,
+            ),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
@@ -305,7 +314,7 @@ class DashboardScreen extends ConsumerWidget {
               height: 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withValues(alpha: 0.08),
+                color: accent.withValues(alpha: 0.08),
               ),
             ),
           ),
@@ -468,6 +477,7 @@ class DashboardScreen extends ConsumerWidget {
 
   // ─────────────── Fund Discovery CTA ───────────────
   Widget _buildFundDiscoveryCard(BuildContext context, bool isDark) {
+    final accent = isDark ? AppColors.primary : AppColors.lightPrimary;
     final border = isDark ? const Color(0xFF21314A) : AppColors.lightBorder;
     final bg = isDark ? const Color(0xFF0C1524) : AppColors.lightCard;
     final titleColor = isDark ? AppColors.darkText : AppColors.lightText;
@@ -476,7 +486,10 @@ class DashboardScreen extends ConsumerWidget {
         : AppColors.lightTextSecondary;
 
     return Material(
+      key: const Key('dashboard-fund-discovery-card'),
       color: Colors.transparent,
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
         onTap: () {
@@ -495,9 +508,7 @@ class DashboardScreen extends ConsumerWidget {
             border: Border.all(color: border),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(
-                  alpha: isDark ? 0.10 : 0.08,
-                ),
+                color: accent.withValues(alpha: isDark ? 0.10 : 0.08),
                 blurRadius: 28,
                 offset: const Offset(0, 12),
               ),
@@ -515,10 +526,8 @@ class DashboardScreen extends ConsumerWidget {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        AppColors.primary.withValues(
-                          alpha: isDark ? 0.24 : 0.13,
-                        ),
-                        AppColors.primary.withValues(alpha: 0),
+                        accent.withValues(alpha: isDark ? 0.24 : 0.13),
+                        accent.withValues(alpha: 0),
                       ],
                     ),
                   ),
@@ -535,7 +544,7 @@ class DashboardScreen extends ConsumerWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        color: accent,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
@@ -578,11 +587,7 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
+                    Icon(Icons.arrow_forward_rounded, color: accent, size: 24),
                   ],
                 ),
               ),
@@ -1524,8 +1529,10 @@ class _InsightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      key: const Key('dashboard-insight-card'),
       constraints: const BoxConstraints(minHeight: 78),
       padding: const EdgeInsets.all(11),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(18),

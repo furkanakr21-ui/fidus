@@ -83,9 +83,9 @@ class AppTheme {
     useMaterial3: true,
     brightness: Brightness.light,
     colorScheme: ColorScheme.light(
-      primary: AppColors.primary,
+      primary: AppColors.lightPrimary,
       onPrimary: Colors.white,
-      secondary: AppColors.primary,
+      secondary: AppColors.lightPrimary,
       surface: AppColors.lightSurface,
       onSurface: AppColors.lightText,
     ),
@@ -135,14 +135,14 @@ class AppTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        borderSide: const BorderSide(color: AppColors.lightPrimary, width: 2),
       ),
       labelStyle: const TextStyle(color: AppColors.lightTextSecondary),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.lightPrimary,
         foregroundColor: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -156,12 +156,12 @@ class AppTheme {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
-        side: const BorderSide(color: AppColors.primary),
+        foregroundColor: AppColors.lightPrimary,
+        side: const BorderSide(color: AppColors.lightPrimary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
         textStyle: _font(
-          color: AppColors.primary,
+          color: AppColors.lightPrimary,
           fontWeight: FontWeight.w700,
           fontSize: 14,
         ),
