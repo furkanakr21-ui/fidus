@@ -34,31 +34,31 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   ];
 
   static const _categoryColors = {
-    AssetType.stock: AppColors.primary,
-    AssetType.crypto: Color(0xFFF59E0B),
-    AssetType.currency: Color(0xFF10B981),
-    AssetType.commodity: AppColors.gold,
-    AssetType.fund: Color(0xFF06B6D4),
-    AssetType.cash: Color(0xFF66BB6A),
-    AssetType.realEstate: Color(0xFFEF5350),
+    AssetType.stock: AppColors.market,
+    AssetType.crypto: AppColors.cashFlow,
+    AssetType.currency: AppColors.profit,
+    AssetType.commodity: AppColors.cashFlow,
+    AssetType.fund: AppColors.planning,
+    AssetType.cash: AppColors.profit,
+    AssetType.realEstate: AppColors.planning,
   };
 
   static const _distColors = {
-    'Hisse': AppColors.primary,
-    'Kripto': Color(0xFFF59E0B),
-    'Döviz/Altın': AppColors.gold,
-    'TEFAS': Color(0xFF06B6D4),
-    'BEFAS': Color(0xFF00897B),
-    'Yabancı/ETF': Color(0xFF185FA5),
-    'Nakit': Color(0xFF66BB6A),
+    'Hisse': AppColors.market,
+    'Kripto': AppColors.cashFlow,
+    'Döviz/Altın': AppColors.cashFlow,
+    'TEFAS': AppColors.planning,
+    'BEFAS': AppColors.planning,
+    'Yabancı/ETF': AppColors.market,
+    'Nakit': AppColors.profit,
     'Diğer': AppColors.silver,
   };
 
   Color _colorForAsset(AssetModel a) {
     if (a.type == AssetType.fund && a.apiSource == 'befas') {
-      return const Color(0xFF00897B);
+      return AppColors.planning;
     }
-    return _categoryColors[a.type] ?? AppColors.primary;
+    return _categoryColors[a.type] ?? AppColors.market;
   }
 
   List<AssetModel> _filteredAssets(List<AssetModel> assets) {
@@ -213,7 +213,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          color: AppColors.primary,
+          color: AppColors.market,
           onRefresh: () =>
               ref.read(priceUpdateProvider.notifier).updatePrices(),
           child: CustomScrollView(
@@ -321,7 +321,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: AppColors.primary,
+                  color: AppColors.market,
                 ),
               ),
             )
@@ -354,7 +354,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   ) {
     final isProfit = dailyChange.isProfit;
     final plColor = dailyChange.hasSnapshot
-        ? (isProfit ? AppColors.profit : AppColors.loss)
+        ? (isProfit
+              ? AppColors.profitFor(Theme.of(context).brightness)
+              : AppColors.loss)
         : AppColors.gold;
     final dailyPercentText = dailyChange.hasSnapshot
         ? '${isProfit ? '+' : ''}${dailyChange.percent.toStringAsFixed(2)}%'
@@ -362,16 +364,34 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     final dailyAmountText = dailyChange.hasSnapshot
         ? dailyChange.formatAmount(absolute: true)
         : 'Bekleniyor';
-    final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Container(
+        key: const Key('portfolio-summary-card'),
         decoration: BoxDecoration(
-          color: bg,
+          gradient: LinearGradient(
+            colors: isDark
+                ? const [
+                    Color(0xFF145078),
+                    Color(0xFF087FA3),
+                    Color(0xFF00B7D4),
+                  ]
+                : const [
+                    Color(0xFFE4F3F9),
+                    Color(0xFFCBEAF6),
+                    Color(0xFFB5DCEB),
+                  ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: border),
+          border: Border.all(
+            color: isDark
+                ? AppColors.market.withValues(alpha: 0.3)
+                : AppColors.market.withValues(alpha: 0.35),
+          ),
           boxShadow: isDark
               ? []
               : [
@@ -384,18 +404,6 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
         ),
         child: Column(
           children: [
-            // Teal top accent
-            Container(
-              height: 3,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, Color(0xFF06E8B8)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
               child: Column(
@@ -590,9 +598,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
         ? data.periodChange.isNegative
               ? AppColors.loss
               : data.periodChange.isPositive
-              ? AppColors.profit
-              : AppColors.primary
-        : AppColors.primary;
+              ? AppColors.profitFor(Theme.of(context).brightness)
+              : AppColors.market
+        : AppColors.market;
     final latestValue = data.points.isEmpty
         ? null
         : '${CurrencyUtils.symbol(displayCurrency)}'
@@ -751,19 +759,17 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: selected
-                    ? AppColors.primary.withValues(alpha: 0.14)
+                    ? AppColors.market.withValues(alpha: 0.14)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: selected ? AppColors.primary : border,
-                ),
+                border: Border.all(color: selected ? AppColors.market : border),
               ),
               child: Text(
                 range.label,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: selected ? AppColors.primary : secondary,
+                  color: selected ? AppColors.market : secondary,
                 ),
               ),
             ),
@@ -824,15 +830,19 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
           children: [
             Row(
               children: [
-                Text(
-                  'Varlık Dağılımı',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? AppColors.darkText : AppColors.lightText,
+                Expanded(
+                  child: Text(
+                    'Varlık Dağılımı',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? AppColors.darkText : AppColors.lightText,
+                    ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 if (nonZero.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -840,14 +850,16 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
+                      color: AppColors.market.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       '${nonZero.length} kategori',
+                      maxLines: 1,
+                      softWrap: false,
                       style: const TextStyle(
                         fontSize: 11,
-                        color: AppColors.primary,
+                        color: AppColors.market,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -930,7 +942,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        width: 48,
+                        width: 60,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 6,
                           vertical: 3,
@@ -939,14 +951,20 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                           color: color.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
-                          '%${pct.toStringAsFixed(1)}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: color,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            key: const Key('portfolio-distribution-percentage'),
+                            '%${pct.toStringAsFixed(1)}',
+                            maxLines: 1,
+                            softWrap: false,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: color,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
                         ),
                       ),
                     ],
@@ -987,12 +1005,12 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.primary
+                      ? AppColors.market
                       : (isDark ? AppColors.darkCard : AppColors.lightCard),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected
-                        ? AppColors.primary
+                        ? AppColors.market
                         : (isDark
                               ? AppColors.darkBorder
                               : AppColors.lightBorder),
@@ -1025,7 +1043,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? Colors.white.withValues(alpha: 0.25)
-                              : AppColors.primary.withValues(alpha: 0.12),
+                              : AppColors.market.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -1033,9 +1051,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.primary,
+                            color: isSelected ? Colors.white : AppColors.market,
                           ),
                         ),
                       ),
@@ -1061,7 +1077,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   ) {
     final color = _colorForAsset(asset);
     final isProfit = asset.profitLoss >= 0;
-    final plColor = isProfit ? AppColors.profit : AppColors.loss;
+    final plColor = isProfit
+        ? AppColors.profitFor(Theme.of(context).brightness)
+        : AppColors.loss;
     final portfolioWeight = totalValue > 0
         ? (asset.currentValue / totalValue) * 100
         : 0.0;
@@ -1180,6 +1198,8 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                                         ),
                                         child: Text(
                                           '%${portfolioWeight.toStringAsFixed(0)}',
+                                          maxLines: 1,
+                                          softWrap: false,
                                           style: TextStyle(
                                             fontSize: 9,
                                             fontWeight: FontWeight.w700,
@@ -1341,18 +1361,18 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected ? AppColors.primary : null,
+        color: isSelected ? AppColors.market : null,
         size: 22,
       ),
       title: Text(
         label,
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-          color: isSelected ? AppColors.primary : null,
+          color: isSelected ? AppColors.market : null,
         ),
       ),
       trailing: isSelected
-          ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 20)
+          ? const Icon(Icons.check_rounded, color: AppColors.market, size: 20)
           : null,
       contentPadding: EdgeInsets.zero,
       onTap: () {
@@ -1382,13 +1402,13 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: AppColors.market.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.pie_chart_outline_rounded,
                   size: 36,
-                  color: AppColors.primary,
+                  color: AppColors.market,
                 ),
               ),
               const SizedBox(height: 18),

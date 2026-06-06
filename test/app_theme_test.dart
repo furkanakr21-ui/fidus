@@ -25,9 +25,35 @@ void main() {
     expect(AppTheme.light.colorScheme.primary, AppColors.lightPrimary);
   });
 
-  test('graphite jade light palette does not alter dark theme colors', () {
-    expect(AppColors.primary, const Color(0xFF00CEAA));
-    expect(AppColors.darkBackground, const Color(0xFF070A10));
+  test('dark theme uses the electric aurora surface palette', () {
+    expect(AppColors.darkBackground, const Color(0xFF050E14));
+    expect(AppColors.darkSurface, const Color(0xFF071D26));
+    expect(AppColors.darkCard, const Color(0xFF0A2934));
+    expect(AppColors.darkRaised, const Color(0xFF103A47));
+    expect(AppColors.darkBorder, const Color(0xFF236477));
+    expect(AppColors.darkText, const Color(0xFFFFFFFF));
+    expect(AppColors.darkTextSecondary, const Color(0xFFBAD2DB));
     expect(AppTheme.dark.colorScheme.primary, AppColors.primary);
+  });
+
+  test('semantic colors keep one stable financial meaning', () {
+    expect(AppColors.primary, const Color(0xFF00FFC1));
+    expect(AppColors.profit, const Color(0xFF27FF9A));
+    expect(AppColors.loss, const Color(0xFFFF5474));
+    expect(AppColors.market, const Color(0xFF18DCFF));
+    expect(AppColors.cashFlow, const Color(0xFFFFDB3D));
+    expect(AppColors.planning, const Color(0xFFC895FF));
+    expect(AppColors.gold, AppColors.cashFlow);
+  });
+
+  test('positive financial values use a readable theme-aware green', () {
+    expect(AppColors.lightProfit, const Color(0xFF0B7F5F));
+    expect(AppColors.profitFor(Brightness.light), AppColors.lightProfit);
+    expect(AppColors.profitFor(Brightness.dark), AppColors.profit);
+  });
+
+  test('general accents use the calmer light-theme jade', () {
+    expect(AppColors.accentFor(Brightness.light), AppColors.lightPrimary);
+    expect(AppColors.accentFor(Brightness.dark), AppColors.primary);
   });
 }

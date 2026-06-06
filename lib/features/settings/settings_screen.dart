@@ -54,6 +54,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final currency = ref.watch(currencyProvider);
     final themeMode = ref.watch(themeModeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = AppColors.accentFor(Theme.of(context).brightness);
 
     final activePortfolioData = portfolios.firstWhere(
       (p) => p.id == activePortfolio,
@@ -69,8 +70,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final updateStr = _lastPriceUpdate == null
         ? 'Henüz güncellenmedi'
         : '${_lastPriceUpdate!.toLocal().day}.${_lastPriceUpdate!.toLocal().month}.${_lastPriceUpdate!.toLocal().year} '
-            '${_lastPriceUpdate!.toLocal().hour.toString().padLeft(2, '0')}:'
-            '${_lastPriceUpdate!.toLocal().minute.toString().padLeft(2, '0')}';
+              '${_lastPriceUpdate!.toLocal().hour.toString().padLeft(2, '0')}:'
+              '${_lastPriceUpdate!.toLocal().minute.toString().padLeft(2, '0')}';
 
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
@@ -101,78 +102,124 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 24),
 
               // ── Hesap Senkronizasyonu ──
-              _sectionLabel('Hesap Senkronizasyonu',
-                  Icons.sync_rounded, AppColors.primary, isDark),
+              _sectionLabel(
+                'Hesap Senkronizasyonu',
+                Icons.sync_rounded,
+                accent,
+                isDark,
+              ),
               const SizedBox(height: 8),
               _buildSyncCard(context, isDark, bg, border),
               const SizedBox(height: 20),
 
               // ── Görünüm ──
               _sectionLabel(
-                  'Görünüm', Icons.palette_outlined, AppColors.primary, isDark),
+                'Görünüm',
+                Icons.palette_outlined,
+                AppColors.planning,
+                isDark,
+              ),
               const SizedBox(height: 8),
-              _settingsCard(isDark, bg, border, children: [
-                _settingRow(context, isDark, Icons.contrast_rounded,
-                    const Color(0xFF6366F1), 'Tema', 'Uygulama görünüm modu'),
-                const SizedBox(height: 12),
-                _buildThemeToggle(context, themeMode, isDark),
-                _settingDivider(isDark),
-                _settingRow(context, isDark, Icons.currency_exchange_rounded,
-                    AppColors.gold, 'Para Birimi', 'Değer gösterim birimi'),
-                const SizedBox(height: 12),
-                _buildCurrencyToggle(context, currency, isDark),
-              ]),
+              _settingsCard(
+                isDark,
+                bg,
+                border,
+                children: [
+                  _settingRow(
+                    context,
+                    isDark,
+                    Icons.contrast_rounded,
+                    AppColors.planning,
+                    'Tema',
+                    'Uygulama görünüm modu',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildThemeToggle(context, themeMode, isDark),
+                  _settingDivider(isDark),
+                  _settingRow(
+                    context,
+                    isDark,
+                    Icons.currency_exchange_rounded,
+                    AppColors.gold,
+                    'Para Birimi',
+                    'Değer gösterim birimi',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildCurrencyToggle(context, currency, isDark),
+                ],
+              ),
               const SizedBox(height: 20),
 
               // ── Portföy ──
-              _sectionLabel('Portföy', Icons.pie_chart_outline,
-                  const Color(0xFF06B6D4), isDark),
+              _sectionLabel(
+                'Portföy',
+                Icons.pie_chart_outline,
+                AppColors.market,
+                isDark,
+              ),
               const SizedBox(height: 8),
-              _settingsCard(isDark, bg, border, children: [
-                Row(
-                  children: [
-                    _iconBox(Icons.update_rounded, const Color(0xFF06B6D4)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Son Fiyat Güncellemesi',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                              color: isDark
-                                  ? AppColors.darkText
-                                  : AppColors.lightText,
+              _settingsCard(
+                isDark,
+                bg,
+                border,
+                children: [
+                  Row(
+                    children: [
+                      _iconBox(Icons.update_rounded, AppColors.market),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Son Fiyat Güncellemesi',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: isDark
+                                    ? AppColors.darkText
+                                    : AppColors.lightText,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            updateStr,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.lightTextSecondary,
+                            const SizedBox(height: 2),
+                            Text(
+                              updateStr,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    _iconBox(Icons.cloud_done_rounded, AppColors.profit),
-                  ],
-                ),
-              ]),
+                      _iconBox(
+                        Icons.cloud_done_rounded,
+                        AppColors.profitFor(Theme.of(context).brightness),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
               const SizedBox(height: 20),
 
               // ── Portföyler ──
-              _sectionLabel('Portföyler', Icons.person_outline_rounded,
-                  const Color(0xFF10B981), isDark),
+              _sectionLabel(
+                'Portföyler',
+                Icons.person_outline_rounded,
+                AppColors.market,
+                isDark,
+              ),
               const SizedBox(height: 8),
               _settingsCard(
-                isDark, bg, border,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                isDark,
+                bg,
+                border,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 children: [
                   ...portfolios.asMap().entries.map((entry) {
                     final i = entry.key;
@@ -182,27 +229,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       children: [
                         if (i > 0)
                           Divider(
-                              height: 1,
-                              color: isDark
-                                  ? AppColors.darkBorder
-                                  : AppColors.lightBorder),
+                            height: 1,
+                            color: isDark
+                                ? AppColors.darkBorder
+                                : AppColors.lightBorder,
+                          ),
                         _buildPortfolioTile(context, p, isActive, isDark),
                       ],
                     );
                   }),
                   Divider(
-                      height: 1,
-                      color:
-                          isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                    height: 1,
+                    color: isDark
+                        ? AppColors.darkBorder
+                        : AppColors.lightBorder,
+                  ),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: _iconBox(Icons.add_rounded, AppColors.primary),
+                    leading: _iconBox(Icons.add_rounded, AppColors.market),
                     title: const Text(
                       'Yeni Portföy Ekle',
                       style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14),
+                        color: AppColors.market,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     onTap: () => _showAddPortfolioSheet(context),
                   ),
@@ -211,97 +262,125 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 20),
 
               // ── Hakkında ──
-              _sectionLabel('Hakkında', Icons.info_outline_rounded,
-                  AppColors.silver, isDark),
+              _sectionLabel(
+                'Hakkında',
+                Icons.info_outline_rounded,
+                AppColors.silver,
+                isDark,
+              ),
               const SizedBox(height: 8),
-              _settingsCard(isDark, bg, border,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  children: [
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading:
-                          _iconBox(Icons.apps_rounded, AppColors.primary),
-                      title: Text(
-                        'Fidus',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: isDark
-                              ? AppColors.darkText
-                              : AppColors.lightText,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Versiyon 1.0.0',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.lightTextSecondary),
-                      ),
-                    ),
-                    Divider(
-                        height: 1,
+              _settingsCard(
+                isDark,
+                bg,
+                border,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: _iconBox(Icons.apps_rounded, accent),
+                    title: Text(
+                      'Fidus',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                         color: isDark
-                            ? AppColors.darkBorder
-                            : AppColors.lightBorder),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: _iconBox(
-                          Icons.lock_outline_rounded, AppColors.profit),
-                      title: Text(
-                        'Gizlilik',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: isDark
-                              ? AppColors.darkText
-                              : AppColors.lightText,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Veriler şifreli olarak Fidus sunucusunda saklanır',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.lightTextSecondary),
+                            ? AppColors.darkText
+                            : AppColors.lightText,
                       ),
                     ),
-                  ]),
+                    subtitle: Text(
+                      'Versiyon 1.0.0',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                  ),
+                  Divider(
+                    height: 1,
+                    color: isDark
+                        ? AppColors.darkBorder
+                        : AppColors.lightBorder,
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: _iconBox(
+                      Icons.lock_outline_rounded,
+                      AppColors.profitFor(Theme.of(context).brightness),
+                    ),
+                    title: Text(
+                      'Gizlilik',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: isDark
+                            ? AppColors.darkText
+                            : AppColors.lightText,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Veriler şifreli olarak Fidus sunucusunda saklanır',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 20),
 
               // ── Tehlikeli Bölge ──
-              _sectionLabel('Tehlikeli Bölge', Icons.warning_amber_rounded,
-                  AppColors.loss, isDark),
+              _sectionLabel(
+                'Tehlikeli Bölge',
+                Icons.warning_amber_rounded,
+                AppColors.loss,
+                isDark,
+              ),
               const SizedBox(height: 8),
-              _settingsCard(isDark, bg, border,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  children: [
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: _iconBox(
-                          Icons.delete_forever_rounded, AppColors.loss),
-                      title: const Text(
-                        'Tüm Verileri Sil',
-                        style: TextStyle(
-                            color: AppColors.loss,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14),
-                      ),
-                      subtitle: Text(
-                        'Bu işlem geri alınamaz',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.lightTextSecondary),
-                      ),
-                      onTap: () => _confirmClearAll(context),
+              _settingsCard(
+                isDark,
+                bg,
+                border,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: _iconBox(
+                      Icons.delete_forever_rounded,
+                      AppColors.loss,
                     ),
-                  ]),
+                    title: const Text(
+                      'Tüm Verileri Sil',
+                      style: TextStyle(
+                        color: AppColors.loss,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Bu işlem geri alınamaz',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                    onTap: () => _confirmClearAll(context),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -311,7 +390,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   // ─────────────── Sync Card ───────────────
   Widget _buildSyncCard(
-      BuildContext context, bool isDark, Color bg, Color border) {
+    BuildContext context,
+    bool isDark,
+    Color bg,
+    Color border,
+  ) {
+    final accent = AppColors.accentFor(Theme.of(context).brightness);
     return Container(
       decoration: BoxDecoration(
         color: bg,
@@ -324,7 +408,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           Row(
             children: [
-              _iconBox(Icons.vpn_key_rounded, AppColors.primary),
+              _iconBox(Icons.vpn_key_rounded, accent),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -335,7 +419,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
-                        color: isDark ? AppColors.darkText : AppColors.lightText,
+                        color: isDark
+                            ? AppColors.darkText
+                            : AppColors.lightText,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -359,9 +445,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (_syncCode != null) {
                 Clipboard.setData(ClipboardData(text: _syncCode!));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Kod kopyalandı'),
-                    backgroundColor: AppColors.primary,
+                  SnackBar(
+                    content: const Text('Kod kopyalandı'),
+                    backgroundColor: accent,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -369,13 +455,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
             child: Container(
               width: double.infinity,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
+                color: accent.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.3)),
+                border: Border.all(color: accent.withValues(alpha: 0.3)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -386,12 +470,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 3,
-                      color: AppColors.primary,
+                      color: accent,
                       fontFamily: 'monospace',
                     ),
                   ),
-                  Icon(Icons.copy_rounded,
-                      size: 18, color: AppColors.primary.withValues(alpha: 0.7)),
+                  Icon(
+                    Icons.copy_rounded,
+                    size: 18,
+                    color: accent.withValues(alpha: 0.7),
+                  ),
                 ],
               ),
             ),
@@ -404,13 +491,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               icon: const Icon(Icons.smartphone_rounded, size: 16),
               label: const Text('Başka Cihazdan Hesap Aktar'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: BorderSide(
-                    color: AppColors.primary.withValues(alpha: 0.4)),
+                foregroundColor: accent,
+                side: BorderSide(color: accent.withValues(alpha: 0.4)),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 textStyle: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 13),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
             ),
           ),
@@ -430,11 +519,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return Container(
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           padding: EdgeInsets.fromLTRB(
-              24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+            24,
+            24,
+            24,
+            MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,22 +584,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Emin misin?',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Emin misin?',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         content: const Text(
           'Bu cihazdaki mevcut veriler silinecek ve girilen hesap yüklenecek. Bu işlem geri alınamaz.',
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('İptal')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Devam Et',
-                style: TextStyle(
-                    color: AppColors.primary, fontWeight: FontWeight.w700)),
+            child: Text(
+              'Devam Et',
+              style: TextStyle(
+                color: AppColors.accentFor(Theme.of(ctx).brightness),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -564,13 +662,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: Padding(
         padding: padding ?? const EdgeInsets.all(16),
         child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start, children: children),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
       ),
     );
   }
 
-  Widget _sectionLabel(
-      String title, IconData icon, Color color, bool isDark) {
+  Widget _sectionLabel(String title, IconData icon, Color color, bool isDark) {
     return Row(
       children: [
         Icon(icon, size: 13, color: color),
@@ -600,8 +699,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _settingRow(BuildContext context, bool isDark, IconData icon,
-      Color color, String title, String subtitle) {
+  Widget _settingRow(
+    BuildContext context,
+    bool isDark,
+    IconData icon,
+    Color color,
+    String title,
+    String subtitle,
+  ) {
     return Row(
       children: [
         _iconBox(icon, color),
@@ -609,18 +714,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color:
-                        isDark ? AppColors.darkText : AppColors.lightText)),
-            Text(subtitle,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary)),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: isDark ? AppColors.darkText : AppColors.lightText,
+              ),
+            ),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
+              ),
+            ),
           ],
         ),
       ],
@@ -628,16 +738,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _settingDivider(bool isDark) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Divider(
-            height: 1,
-            color:
-                isDark ? AppColors.darkBorder : AppColors.lightBorder),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    child: Divider(
+      height: 1,
+      color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+    ),
+  );
 
   // ─────────────── Portfolio Hero Card ───────────────
   Widget _buildPortfolioHeroCard(
-      BuildContext context, PortfolioModel portfolio, bool isDark) {
+    BuildContext context,
+    PortfolioModel portfolio,
+    bool isDark,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
@@ -645,14 +758,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
           colors: isDark
-              ? [const Color(0xFF0C1526), const Color(0xFF071A14)]
+              ? [const Color(0xFF145078), const Color(0xFF00A87E)]
               : [const Color(0xFF0A7A66), const Color(0xFF0EC9A0)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? const Color(0xFF0C1526) : AppColors.primary)
+            color: (isDark ? const Color(0xFF003F4C) : AppColors.lightPrimary)
                 .withValues(alpha: isDark ? 0.5 : 0.22),
             blurRadius: 24,
             offset: const Offset(0, 8),
@@ -667,12 +780,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
-              border:
-                  Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
             child: Center(
-              child: Text(portfolio.emoji,
-                  style: const TextStyle(fontSize: 26)),
+              child: Text(
+                portfolio.emoji,
+                style: const TextStyle(fontSize: 26),
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -691,8 +805,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(20),
@@ -716,7 +832,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   // ─────────────── Theme Toggle ───────────────
   Widget _buildThemeToggle(
-      BuildContext context, ThemeMode current, bool isDark) {
+    BuildContext context,
+    ThemeMode current,
+    bool isDark,
+  ) {
+    final accent = AppColors.accentFor(Theme.of(context).brightness);
     final options = [
       (ThemeMode.system, Icons.brightness_auto_rounded, 'Sistem'),
       (ThemeMode.light, Icons.light_mode_rounded, 'Açık'),
@@ -741,38 +861,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppColors.primary
+                    ? accent
                     : (isDark
-                        ? AppColors.darkBackground
-                        : AppColors.lightBackground),
+                          ? AppColors.darkBackground
+                          : AppColors.lightBackground),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isSelected
-                      ? AppColors.primary
-                      : (isDark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder),
+                      ? accent
+                      : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
                 ),
               ),
               child: Column(
                 children: [
-                  Icon(icon,
-                      size: 20,
+                  Icon(
+                    icon,
+                    size: 20,
+                    color: isSelected
+                        ? Colors.white
+                        : (isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                       color: isSelected
                           ? Colors.white
                           : (isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.lightTextSecondary)),
-                  const SizedBox(height: 4),
-                  Text(label,
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected
-                              ? Colors.white
-                              : (isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.lightTextSecondary))),
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -784,7 +907,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   // ─────────────── Currency Toggle ───────────────
   Widget _buildCurrencyToggle(
-      BuildContext context, String current, bool isDark) {
+    BuildContext context,
+    String current,
+    bool isDark,
+  ) {
     const options = [('TRY', '₺'), ('USD', '\$'), ('EUR', '€')];
 
     return Row(
@@ -796,8 +922,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         return Expanded(
           child: GestureDetector(
-            onTap: () =>
-                ref.read(currencyProvider.notifier).setCurrency(code),
+            onTap: () => ref.read(currencyProvider.notifier).setCurrency(code),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               margin: EdgeInsets.only(right: i < 2 ? 8 : 0),
@@ -806,38 +931,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 color: isSelected
                     ? AppColors.gold
                     : (isDark
-                        ? AppColors.darkBackground
-                        : AppColors.lightBackground),
+                          ? AppColors.darkBackground
+                          : AppColors.lightBackground),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isSelected
                       ? AppColors.gold
-                      : (isDark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder),
+                      : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
                 ),
               ),
               child: Column(
                 children: [
-                  Text(symbol,
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: isSelected
-                              ? Colors.white
-                              : (isDark
-                                  ? AppColors.darkText
-                                  : AppColors.lightText))),
+                  Text(
+                    symbol,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: isSelected
+                          ? Colors.white
+                          : (isDark ? AppColors.darkText : AppColors.lightText),
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(code,
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected
-                              ? Colors.white.withValues(alpha: 0.85)
-                              : (isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.lightTextSecondary))),
+                  Text(
+                    code,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.85)
+                          : (isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -848,8 +975,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   // ─────────────── Portfolio Tile ───────────────
-  Widget _buildPortfolioTile(BuildContext context, PortfolioModel portfolio,
-      bool isActive, bool isDark) {
+  Widget _buildPortfolioTile(
+    BuildContext context,
+    PortfolioModel portfolio,
+    bool isActive,
+    bool isDark,
+  ) {
+    final accent = AppColors.accentFor(Theme.of(context).brightness);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Container(
@@ -857,17 +989,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         height: 36,
         decoration: BoxDecoration(
           color: isActive
-              ? AppColors.primary.withValues(alpha: 0.15)
+              ? accent.withValues(alpha: 0.15)
               : (isDark ? AppColors.darkBorder : AppColors.lightBorder)
-                  .withValues(alpha: 0.4),
+                    .withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(10),
-          border: isActive
-              ? Border.all(color: AppColors.primary, width: 1.5)
-              : null,
+          border: isActive ? Border.all(color: accent, width: 1.5) : null,
         ),
         child: Center(
-          child: Text(portfolio.emoji,
-              style: const TextStyle(fontSize: 18)),
+          child: Text(portfolio.emoji, style: const TextStyle(fontSize: 18)),
         ),
       ),
       title: Text(
@@ -879,15 +1008,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
       subtitle: isActive
-          ? const Text('Aktif',
+          ? Text(
+              'Aktif',
               style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600))
+                fontSize: 11,
+                color: accent,
+                fontWeight: FontWeight.w600,
+              ),
+            )
           : null,
       trailing: isActive
-          ? const Icon(Icons.check_circle_rounded,
-              color: AppColors.primary, size: 20)
+          ? Icon(Icons.check_circle_rounded, color: accent, size: 20)
           : TextButton(
               onPressed: () async {
                 await ref
@@ -903,9 +1034,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   );
                 }
               },
-              child: const Text('Seç',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13)),
+              child: const Text(
+                'Seç',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
             ),
       onLongPress: ref.read(portfoliosProvider).length <= 1
           ? null
@@ -917,9 +1049,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void _showAddPortfolioSheet(BuildContext context) {
     final nameController = TextEditingController();
     String selectedEmoji = '💼';
-    const emojis = [
-      '💼', '👤', '🏠', '💰', '🌱', '🎯', '📈', '🚀', '💎', '🌍',
-    ];
+    const emojis = ['💼', '👤', '🏠', '💰', '🌱', '🎯', '📈', '🚀', '💎', '🌍'];
 
     showModalBottomSheet(
       context: context,
@@ -932,11 +1062,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             return Container(
               decoration: BoxDecoration(
                 color: isDark ? AppColors.darkSurface : Colors.white,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(28),
+                ),
               ),
               padding: EdgeInsets.fromLTRB(
-                  24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+                24,
+                24,
+                24,
+                MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -946,9 +1081,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 18,
-                      color: isDark
-                          ? AppColors.darkText
-                          : AppColors.lightText,
+                      color: isDark ? AppColors.darkText : AppColors.lightText,
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -963,27 +1096,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         final isSelected = selectedEmoji == emojis[index];
                         return GestureDetector(
                           onTap: () => setModalState(
-                              () => selectedEmoji = emojis[index]),
+                            () => selectedEmoji = emojis[index],
+                          ),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
                             width: 48,
                             height: 48,
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppColors.primary.withValues(alpha: 0.15)
+                                  ? (isDark
+                                            ? AppColors.primary
+                                            : AppColors.lightPrimary)
+                                        .withValues(alpha: 0.15)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected
-                                    ? AppColors.primary
+                                    ? (isDark
+                                          ? AppColors.primary
+                                          : AppColors.lightPrimary)
                                     : (isDark
-                                        ? AppColors.darkBorder
-                                        : AppColors.lightBorder),
+                                          ? AppColors.darkBorder
+                                          : AppColors.lightBorder),
                               ),
                             ),
                             child: Center(
-                              child: Text(emojis[index],
-                                  style: const TextStyle(fontSize: 22)),
+                              child: Text(
+                                emojis[index],
+                                style: const TextStyle(fontSize: 22),
+                              ),
                             ),
                           ),
                         );
@@ -1024,27 +1165,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   // ─────────────── Delete Portfolio ───────────────
-  void _confirmDeletePortfolio(
-      BuildContext context, PortfolioModel portfolio) {
+  void _confirmDeletePortfolio(BuildContext context, PortfolioModel portfolio) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Portföyü Sil',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Portföyü Sil',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         content: Text(
-            '"${portfolio.name}" portföyünü silmek istiyor musun? İçindeki tüm veriler kalıcı olarak silinir.'),
+          '"${portfolio.name}" portföyünü silmek istiyor musun? İçindeki tüm veriler kalıcı olarak silinir.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('İptal'),
+          ),
           TextButton(
             onPressed: () async {
               final active = ref.read(activePortfolioProvider);
-              await ref
-                  .read(portfoliosProvider.notifier)
-                  .delete(portfolio.id);
+              await ref.read(portfoliosProvider.notifier).delete(portfolio.id);
               if (active == portfolio.id) {
                 final remaining = ref.read(portfoliosProvider);
                 if (remaining.isNotEmpty) {
@@ -1055,8 +1196,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               }
               if (ctx.mounted) Navigator.pop(ctx);
             },
-            child: const Text('Sil',
-                style: TextStyle(color: AppColors.loss)),
+            child: const Text('Sil', style: TextStyle(color: AppColors.loss)),
           ),
         ],
       ),
@@ -1068,17 +1208,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Tüm Verileri Sil',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Tüm Verileri Sil',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         content: const Text(
           'Tüm varlıklar, nakit akışları ve hedefler kalıcı olarak silinir. Bu işlem geri alınamaz.',
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('İptal'),
+          ),
           TextButton(
             onPressed: () async {
               final portfolioId = ref.read(activePortfolioProvider);
@@ -1107,8 +1249,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 );
               }
             },
-            child:
-                const Text('Sil', style: TextStyle(color: AppColors.loss)),
+            child: const Text('Sil', style: TextStyle(color: AppColors.loss)),
           ),
         ],
       ),

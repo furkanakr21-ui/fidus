@@ -66,7 +66,7 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          color: AppColors.primary,
+          color: AppColors.accentFor(Theme.of(context).brightness),
           onRefresh: () async =>
               ref.read(priceUpdateProvider.notifier).updatePrices(),
           child: CustomScrollView(
@@ -255,7 +255,9 @@ class DashboardScreen extends ConsumerWidget {
     final accent = isDark ? AppColors.primary : AppColors.lightPrimary;
     final isProfit = dailyChange.isProfit;
     final plColor = dailyChange.hasSnapshot
-        ? (isProfit ? AppColors.profit : AppColors.loss)
+        ? (isProfit
+              ? AppColors.profitFor(Theme.of(context).brightness)
+              : AppColors.loss)
         : AppColors.gold;
     final dailyAmountText = dailyChange.hasSnapshot
         ? dailyChange.formatAmount()
@@ -272,7 +274,11 @@ class DashboardScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
           colors: isDark
-              ? [const Color(0xFF0D1B2E), const Color(0xFF08201A)]
+              ? [
+                  const Color(0xFF0B334B),
+                  const Color(0xFF005A4B),
+                  const Color(0xFF008A67),
+                ]
               : [
                   const Color(0xFF203B45),
                   AppColors.lightPrimaryDark,
@@ -283,7 +289,7 @@ class DashboardScreen extends ConsumerWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? const Color(0xFF0C1526) : accent).withValues(
+            color: (isDark ? const Color(0xFF003F4C) : accent).withValues(
               alpha: isDark ? 0.6 : 0.3,
             ),
             blurRadius: 30,
@@ -430,11 +436,13 @@ class DashboardScreen extends ConsumerWidget {
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
     final netColor = monthlyNetFlow.netTry > 0
-        ? AppColors.profit
+        ? AppColors.profitFor(Theme.of(context).brightness)
         : monthlyNetFlow.netTry < 0
         ? AppColors.loss
         : AppColors.gold;
-    final leaderColor = topGainer == null ? AppColors.gold : AppColors.profit;
+    final leaderColor = topGainer == null
+        ? AppColors.cashFlow
+        : AppColors.market;
 
     return Row(
       children: [
@@ -478,8 +486,8 @@ class DashboardScreen extends ConsumerWidget {
   // ─────────────── Fund Discovery CTA ───────────────
   Widget _buildFundDiscoveryCard(BuildContext context, bool isDark) {
     final accent = isDark ? AppColors.primary : AppColors.lightPrimary;
-    final border = isDark ? const Color(0xFF21314A) : AppColors.lightBorder;
-    final bg = isDark ? const Color(0xFF0C1524) : AppColors.lightCard;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final bg = isDark ? AppColors.darkSurface : AppColors.lightCard;
     final titleColor = isDark ? AppColors.darkText : AppColors.lightText;
     final subtitleColor = isDark
         ? AppColors.darkTextSecondary
@@ -600,52 +608,49 @@ class DashboardScreen extends ConsumerWidget {
 
   // ─────────────── Assets by Category ───────────────
   static final _categories = [
-    // TEFAS: indigo-mor — kurumsal fonlar, istikrar + güven
+    // Fonlar: menekşe — uzun vadeli planlama ve keşif
     const _AssetCategory(
       'TEFAS',
       Icons.account_balance_outlined,
-      Color(0xFF7C6AF5),
+      AppColors.planning,
     ),
-    // BEFAS: daha açık mor — uzun vadeli emeklilik, sabır
     const _AssetCategory(
       'BEFAS',
       Icons.business_center_outlined,
-      Color(0xFFAA82FA),
+      AppColors.planning,
     ),
-    // BIST: parlak mavi — borsa dinamizmi, enerji
-    const _AssetCategory('BIST', Icons.show_chart_rounded, Color(0xFF2196F3)),
-    // Yabancı/ETF: cyan — küresel, teknoloji hissi
+    // Piyasalar: analitik mavi — güven ve inceleme
+    const _AssetCategory('BIST', Icons.show_chart_rounded, AppColors.market),
     const _AssetCategory(
       'Yabancı / ETF',
       Icons.language_rounded,
-      Color(0xFF00C8E0),
+      AppColors.market,
     ),
-    // Kripto: turuncu-amber — spekülatif, yüksek enerji
+    // Kripto ve emtia: kehribar — hareket ve dikkat
     const _AssetCategory(
       'Kripto',
       Icons.currency_bitcoin_rounded,
-      Color(0xFFFF8F00),
+      AppColors.cashFlow,
     ),
     // Döviz: taze yeşil — likit, erişilebilir para
-    const _AssetCategory(
-      'Döviz',
-      Icons.attach_money_rounded,
-      Color(0xFF00D98F),
-    ),
+    const _AssetCategory('Döviz', Icons.attach_money_rounded, AppColors.profit),
     // Altın/Emtia: canlı altın — kıymetli maden, premium
     const _AssetCategory(
       'Altın / Emtia',
       Icons.diamond_outlined,
-      Color(0xFFFFAB00),
+      AppColors.cashFlow,
     ),
     // Nakit: açık yeşil — güvenli, likit
     const _AssetCategory(
       'Nakit',
       Icons.account_balance_wallet_outlined,
-      Color(0xFF69F0AE),
+      AppColors.profit,
     ),
-    // Gayrimenkul: canlı kırmızı — fiziksel varlık, somut
-    const _AssetCategory('Gayrimenkul', Icons.home_outlined, Color(0xFFFF5252)),
+    const _AssetCategory(
+      'Gayrimenkul',
+      Icons.home_outlined,
+      AppColors.planning,
+    ),
   ];
 
   List<AssetModel> _assetsForCategory(
@@ -704,6 +709,7 @@ class DashboardScreen extends ConsumerWidget {
     String displayCurrency,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = AppColors.accentFor(Theme.of(context).brightness);
     final nonEmpty = _categories
         .map((cat) => (cat, _assetsForCategory(cat.label, merged)))
         .where((pair) => pair.$2.isNotEmpty)
@@ -734,17 +740,15 @@ class DashboardScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
+                color: accent.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                ),
+                border: Border.all(color: accent.withValues(alpha: 0.15)),
               ),
               child: Text(
                 '${nonEmpty.length} kategori',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.primary,
+                  color: accent,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -807,7 +811,9 @@ class DashboardScreen extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: isDark ? 0.07 : 0.05),
+        color: (isDark ? AppColors.primary : AppColors.lightPrimary).withValues(
+          alpha: isDark ? 0.07 : 0.05,
+        ),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: border),
       ),
@@ -844,6 +850,9 @@ class DashboardScreen extends ConsumerWidget {
   ) {
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final categoryColor = !isDark && cat.color == AppColors.profit
+        ? AppColors.lightProfit
+        : cat.color;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
@@ -866,7 +875,7 @@ class DashboardScreen extends ConsumerWidget {
                   width: 3,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: cat.color,
+                    color: categoryColor,
                     borderRadius: const BorderRadius.only(
                       topRight: Radius.circular(2),
                       bottomRight: Radius.circular(2),
@@ -878,10 +887,10 @@ class DashboardScreen extends ConsumerWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: cat.color.withValues(alpha: 0.1),
+                    color: categoryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(cat.icon, color: cat.color, size: 17),
+                  child: Icon(cat.icon, color: categoryColor, size: 17),
                 ),
               ],
             ),
@@ -918,6 +927,8 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Text(
                   '%${catPct.toStringAsFixed(1)}',
+                  maxLines: 1,
+                  softWrap: false,
                   style: TextStyle(
                     fontSize: 11,
                     color: cat.color,
@@ -1000,7 +1011,7 @@ class DashboardScreen extends ConsumerWidget {
     final plColor = !isDailyReady
         ? secondary
         : isProfit
-        ? AppColors.profit
+        ? AppColors.profitFor(Theme.of(context).brightness)
         : AppColors.loss;
     final dailyPercentText = _dailyAssetPercentText(dailyChange);
     final dailyAmountText = _dailyAssetAmountText(dailyChange);
@@ -1166,7 +1177,7 @@ class DashboardScreen extends ConsumerWidget {
                 'Tümünü gör →',
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.primary,
+                  color: AppColors.accentFor(Theme.of(context).brightness),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1192,7 +1203,9 @@ class DashboardScreen extends ConsumerWidget {
                     final i = entry.key;
                     final c = entry.value;
                     final isDeposit = c.type == CashFlowType.deposit;
-                    final color = isDeposit ? AppColors.profit : AppColors.loss;
+                    final color = isDeposit
+                        ? AppColors.profitFor(Theme.of(context).brightness)
+                        : AppColors.loss;
                     final isLast = i == cashflows.length - 1;
                     return Column(
                       children: [
@@ -1284,6 +1297,7 @@ class DashboardScreen extends ConsumerWidget {
   // ─────────────── Goal Card ───────────────
   Widget _buildGoalCard(BuildContext context, WidgetRef ref, GoalModel goal) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = AppColors.accentFor(Theme.of(context).brightness);
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
     final progress = goal.targetAmount > 0
@@ -1315,7 +1329,7 @@ class DashboardScreen extends ConsumerWidget {
                 'Tümünü gör →',
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.primary,
+                  color: AppColors.accentFor(Theme.of(context).brightness),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1378,17 +1392,17 @@ class DashboardScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.15),
+                        color: accent.withValues(alpha: 0.15),
                         width: 4,
                       ),
                     ),
                     child: Center(
                       child: Text(
                         '%$progressPct',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
-                          color: AppColors.primary,
+                          color: accent,
                         ),
                       ),
                     ),
@@ -1401,7 +1415,7 @@ class DashboardScreen extends ConsumerWidget {
                   Container(
                     height: 5,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
+                      color: accent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                   ),
@@ -1410,8 +1424,13 @@ class DashboardScreen extends ConsumerWidget {
                     child: Container(
                       height: 5,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.primary, Color(0xFF06E8B8)],
+                        gradient: LinearGradient(
+                          colors: [
+                            accent,
+                            isDark
+                                ? const Color(0xFF06E8B8)
+                                : AppColors.lightPrimaryDark,
+                          ],
                         ),
                         borderRadius: BorderRadius.circular(6),
                       ),

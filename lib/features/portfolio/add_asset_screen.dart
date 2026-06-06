@@ -132,25 +132,25 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
   Color get _typeColor {
     switch (_currentKey) {
       case 'bist':
-        return AppColors.primary;
+        return AppColors.market;
       case 'foreign':
-        return const Color(0xFF185FA5);
+        return AppColors.market;
       case 'crypto':
-        return const Color(0xFFFF6584);
+        return AppColors.cashFlow;
       case 'tefas':
-        return const Color(0xFF00897B);
+        return AppColors.planning;
       case 'befas':
-        return const Color(0xFF5E35B1);
+        return AppColors.planning;
       case 'currency':
-        return const Color(0xFF00C853);
+        return AppColors.profit;
       case 'commodity':
-        return const Color(0xFFFFB300);
+        return AppColors.cashFlow;
       case 'cash':
-        return const Color(0xFF66BB6A);
+        return AppColors.profit;
       case 'realestate':
-        return const Color(0xFFEF5350);
+        return AppColors.planning;
       default:
-        return AppColors.primary;
+        return AppColors.market;
     }
   }
 
@@ -1050,7 +1050,7 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
     final hasReturn = r1y != null;
     final positive = hasReturn && r1y >= 0;
     final returnColor = positive
-        ? const Color(0xFF00C853)
+        ? AppColors.profitFor(Theme.of(context).brightness)
         : const Color(0xFFFF1744);
 
     return Card(

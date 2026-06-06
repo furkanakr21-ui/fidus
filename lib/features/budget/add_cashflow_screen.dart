@@ -32,7 +32,9 @@ class _AddCashFlowScreenState extends ConsumerState<AddCashFlowScreen> {
     super.dispose();
   }
 
-  Color get _color => widget.isDeposit ? AppColors.profit : AppColors.loss;
+  Color get _color => widget.isDeposit
+      ? AppColors.profitFor(Theme.of(context).brightness)
+      : AppColors.loss;
 
   @override
   Widget build(BuildContext context) {

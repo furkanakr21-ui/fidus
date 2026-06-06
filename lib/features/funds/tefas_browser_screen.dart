@@ -40,8 +40,8 @@ class _TefasBrowserScreenState extends State<TefasBrowserScreen>
   final _tefasScrollCtrl = ScrollController();
   final _befasScrollCtrl = ScrollController();
 
-  static const Color _tefasColor = AppColors.primary;
-  static const Color _befasColor = Color(0xFF5E35B1);
+  Color get _tefasColor => AppColors.accentFor(Theme.of(context).brightness);
+  static const Color _befasColor = AppColors.planning;
 
   @override
   void initState() {
@@ -412,7 +412,7 @@ class _FundCard extends StatelessWidget {
 
     final positive = (mainRet ?? 0) >= 0;
     final retColor = positive
-        ? const Color(0xFF00C853)
+        ? AppColors.profitFor(Theme.of(context).brightness)
         : const Color(0xFFFF1744);
 
     return Card(

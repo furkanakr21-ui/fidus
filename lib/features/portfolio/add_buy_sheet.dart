@@ -129,6 +129,7 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final asset = widget.mergedAsset;
+    final profitColor = AppColors.profitFor(theme.brightness);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -159,12 +160,12 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: AppColors.profit.withValues(alpha: 0.12),
+                      color: profitColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.trending_up_rounded,
-                      color: AppColors.profit,
+                      color: profitColor,
                       size: 20,
                     ),
                   ),
@@ -251,10 +252,10 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: AppColors.profit.withValues(alpha: 0.07),
+                          color: profitColor.withValues(alpha: 0.07),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: AppColors.profit.withValues(alpha: 0.2),
+                            color: profitColor.withValues(alpha: 0.2),
                           ),
                         ),
                         child: Row(
@@ -270,10 +271,10 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
                             ),
                             Text(
                               '$_currencySymbol${_totalCost.toStringAsFixed(2)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 18,
-                                color: AppColors.profit,
+                                color: profitColor,
                               ),
                             ),
                           ],
@@ -285,7 +286,7 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _save,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.profit,
+                          backgroundColor: profitColor,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -347,7 +348,10 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.profit, width: 2),
+          borderSide: BorderSide(
+            color: AppColors.profitFor(Theme.of(context).brightness),
+            width: 2,
+          ),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
@@ -376,10 +380,10 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.calendar_today_outlined,
               size: 16,
-              color: AppColors.profit,
+              color: AppColors.profitFor(Theme.of(context).brightness),
             ),
             const SizedBox(width: 8),
             Column(

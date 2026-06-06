@@ -90,53 +90,76 @@ void main() {
     expect(find.byType(BackdropFilter), findsOneWidget);
   });
 
-  testWidgets('bottom navigation surface is a borderless full pill', (
+  testWidgets('bottom navigation surface is a subtly outlined full pill', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          bottomNavigationBar: FidusBottomNavigation(
-            currentIndex: 0,
-            isDark: true,
-            onTap: (_) {},
-          ),
-        ),
-      ),
-    );
-
-    final surface = tester.widget<Container>(
-      find.byKey(const Key('fidus-nav-surface')),
-    );
-    final decoration = surface.decoration! as BoxDecoration;
-    expect(decoration.border, isNull);
-    expect(decoration.borderRadius, BorderRadius.circular(25));
-  });
-
-  testWidgets(
-    'bottom navigation glass stays highly translucent in both themes',
-    (tester) async {
-      for (final isDark in [true, false]) {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              bottomNavigationBar: FidusBottomNavigation(
-                currentIndex: 0,
-                isDark: isDark,
-                onTap: (_) {},
-              ),
+    for (final isDark in [true, false]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            bottomNavigationBar: FidusBottomNavigation(
+              currentIndex: 0,
+              isDark: isDark,
+              onTap: (_) {},
             ),
           ),
-        );
+        ),
+      );
 
-        final surface = tester.widget<Container>(
-          find.byKey(const Key('fidus-nav-surface')),
-        );
-        final decoration = surface.decoration! as BoxDecoration;
-        expect(decoration.color!.a, lessThanOrEqualTo(0.12));
-      }
-    },
-  );
+      final surface = tester.widget<Container>(
+        find.byKey(const Key('fidus-nav-surface')),
+      );
+      final decoration = surface.decoration! as BoxDecoration;
+      final border = decoration.border! as Border;
+      expect(border.top.width, 1);
+      expect(border.top.color.a, closeTo(isDark ? 0.20 : 0.16, 0.001));
+      expect(decoration.borderRadius, BorderRadius.circular(25));
+    }
+  });
+
+  testWidgets('bottom navigation uses reduced transparency in both themes', (
+    tester,
+  ) async {
+    for (final isDark in [true, false]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            bottomNavigationBar: FidusBottomNavigation(
+              currentIndex: 0,
+              isDark: isDark,
+              onTap: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      final surface = tester.widget<Container>(
+        find.byKey(const Key('fidus-nav-surface')),
+      );
+      final decoration = surface.decoration! as BoxDecoration;
+      expect(decoration.color!.a, closeTo(isDark ? 0.21 : 0.25, 0.001));
+    }
+  });
+
+  testWidgets('bottom navigation uses one subtle blur layer in either theme', (
+    tester,
+  ) async {
+    for (final isDark in [true, false]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            bottomNavigationBar: FidusBottomNavigation(
+              currentIndex: 0,
+              isDark: isDark,
+              onTap: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(BackdropFilter), findsOneWidget);
+    }
+  });
 
   testWidgets('bottom navigation uses wallet icon and selected-only emphasis', (
     tester,

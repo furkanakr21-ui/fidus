@@ -17,8 +17,11 @@ class AssetDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final displayCurrency = ref.watch(currencyProvider);
-    final transactions = ref.watch(transactionsProvider
-        .select((list) => list.where((t) => t.symbol == mergedAsset.symbol).toList()));
+    final transactions = ref.watch(
+      transactionsProvider.select(
+        (list) => list.where((t) => t.symbol == mergedAsset.symbol).toList(),
+      ),
+    );
     final allAssets = ref.watch(assetsProvider);
     final lots = allAssets.where((a) => a.symbol == mergedAsset.symbol).toList()
       ..sort((a, b) => a.buyDate.compareTo(b.buyDate));
@@ -52,7 +55,13 @@ class AssetDetailScreen extends ConsumerWidget {
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
-            child: _buildSummaryCard(context, ref, displayCurrency, color, current),
+            child: _buildSummaryCard(
+              context,
+              ref,
+              displayCurrency,
+              color,
+              current,
+            ),
           ),
           // Lotlar (birden fazlaysa göster)
           if (lots.length > 1) ...[
@@ -113,7 +122,9 @@ class AssetDetailScreen extends ConsumerWidget {
     final pl = current.profitLoss;
     final plPct = current.profitLossPercent;
     final isProfit = pl >= 0;
-    final plColor = isProfit ? AppColors.profit : AppColors.loss;
+    final plColor = isProfit
+        ? AppColors.profitFor(Theme.of(context).brightness)
+        : AppColors.loss;
 
     String fmt(double v) => CurrencyUtils.format(v, displayCurrency);
 
@@ -213,11 +224,7 @@ class AssetDetailScreen extends ConsumerWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              _statCell(
-                context,
-                'Miktar',
-                _formatQty(current.quantity),
-              ),
+              _statCell(context, 'Miktar', _formatQty(current.quantity)),
               _statCell(
                 context,
                 'Ort. Maliyet',
@@ -253,10 +260,7 @@ class AssetDetailScreen extends ConsumerWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
           ),
@@ -282,10 +286,7 @@ class AssetDetailScreen extends ConsumerWidget {
           Container(
             width: 8,
             height: 8,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -314,7 +315,9 @@ class AssetDetailScreen extends ConsumerWidget {
     Color color,
   ) {
     final isBuy = tx.type == TransactionType.buy;
-    final txColor = isBuy ? AppColors.profit : AppColors.loss;
+    final txColor = isBuy
+        ? AppColors.profitFor(Theme.of(context).brightness)
+        : AppColors.loss;
     final theme = Theme.of(context);
 
     return Container(
@@ -359,10 +362,7 @@ class AssetDetailScreen extends ConsumerWidget {
             const SizedBox(width: 8),
             Text(
               '${_formatQty(tx.quantity)} adet',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
           ],
         ),
@@ -458,9 +458,9 @@ class AssetDetailScreen extends ConsumerWidget {
       child: Text(
         title,
         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+        ),
       ),
     );
   }
@@ -469,7 +469,9 @@ class AssetDetailScreen extends ConsumerWidget {
 
   void _openSellSheet(BuildContext context, WidgetRef ref) {
     final allAssets = ref.read(assetsProvider);
-    final lots = allAssets.where((a) => a.symbol == mergedAsset.symbol).toList();
+    final lots = allAssets
+        .where((a) => a.symbol == mergedAsset.symbol)
+        .toList();
     final totalQty = lots.fold(0.0, (sum, a) => sum + a.quantity);
 
     showModalBottomSheet(
@@ -490,18 +492,18 @@ class AssetDetailScreen extends ConsumerWidget {
 
   Color _colorForAsset(AssetModel a) {
     const colors = {
-      AssetType.stock: AppColors.primary,
-      AssetType.crypto: Color(0xFFFF6584),
-      AssetType.currency: Color(0xFF10B981),
-      AssetType.commodity: Color(0xFFFFB300),
-      AssetType.fund: Color(0xFF06B6D4),
-      AssetType.cash: Color(0xFF66BB6A),
-      AssetType.realEstate: Color(0xFFEF5350),
+      AssetType.stock: AppColors.market,
+      AssetType.crypto: AppColors.cashFlow,
+      AssetType.currency: AppColors.profit,
+      AssetType.commodity: AppColors.cashFlow,
+      AssetType.fund: AppColors.planning,
+      AssetType.cash: AppColors.profit,
+      AssetType.realEstate: AppColors.planning,
     };
     if (a.type == AssetType.fund && a.apiSource == 'befas') {
-      return const Color(0xFF00897B);
+      return AppColors.planning;
     }
-    return colors[a.type] ?? AppColors.primary;
+    return colors[a.type] ?? AppColors.market;
   }
 
   String _typeBadgeLabel(AssetModel a) {

@@ -20,8 +20,7 @@ class GoalsScreen extends ConsumerWidget {
     if (goal.targetDate == null) return 0;
     final now = DateTime.now();
     final target = goal.targetDate!;
-    final months =
-        (target.year - now.year) * 12 + (target.month - now.month);
+    final months = (target.year - now.year) * 12 + (target.month - now.month);
     if (months <= 0) return 0;
     final remaining = goal.targetAmount - goal.currentAmount;
     if (remaining <= 0) return 0;
@@ -31,23 +30,20 @@ class GoalsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final goals = ref.watch(goalsProvider);
-    final totalTarget =
-        goals.fold(0.0, (sum, g) => sum + g.targetAmount);
-    final totalCurrent =
-        goals.fold(0.0, (sum, g) => sum + g.currentAmount);
-    final overallProgress =
-        totalTarget == 0 ? 0.0 : (totalCurrent / totalTarget) * 100;
+    final totalTarget = goals.fold(0.0, (sum, g) => sum + g.targetAmount);
+    final totalCurrent = goals.fold(0.0, (sum, g) => sum + g.currentAmount);
+    final overallProgress = totalTarget == 0
+        ? 0.0
+        : (totalCurrent / totalTarget) * 100;
 
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: () async =>
-              ref.read(goalsProvider.notifier).load(),
+          color: AppColors.planning,
+          onRefresh: () async => ref.read(goalsProvider.notifier).load(),
           child: CustomScrollView(
             slivers: [
-              SliverToBoxAdapter(
-                  child: _buildHeader(context, ref, goals)),
+              SliverToBoxAdapter(child: _buildHeader(context, ref, goals)),
               if (goals.isNotEmpty)
                 SliverToBoxAdapter(
                   child: _buildOverviewCard(
@@ -58,8 +54,7 @@ class GoalsScreen extends ConsumerWidget {
                   ),
                 ),
               goals.isEmpty
-                  ? SliverToBoxAdapter(
-                      child: _buildEmptyState(context, ref))
+                  ? SliverToBoxAdapter(child: _buildEmptyState(context, ref))
                   : SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) =>
@@ -95,8 +90,7 @@ class GoalsScreen extends ConsumerWidget {
                   fontSize: 30,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -1.2,
-                  color:
-                      isDark ? AppColors.darkText : AppColors.lightText,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
                 ),
               ),
               Text(
@@ -114,10 +108,11 @@ class GoalsScreen extends ConsumerWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
+              color: AppColors.planning.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.2)),
+                color: AppColors.planning.withValues(alpha: 0.2),
+              ),
             ),
             child: IconButton(
               padding: EdgeInsets.zero,
@@ -131,7 +126,7 @@ class GoalsScreen extends ConsumerWidget {
               },
               icon: const Icon(
                 Icons.add_rounded,
-                color: AppColors.primary,
+                color: AppColors.planning,
                 size: 22,
               ),
             ),
@@ -156,16 +151,15 @@ class GoalsScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(20),
           gradient: LinearGradient(
             colors: isDark
-                ? [const Color(0xFF0D1B2E), const Color(0xFF08201A)]
+                ? [const Color(0xFF38265B), const Color(0xFF8252C7)]
                 : [const Color(0xFF00705A), const Color(0xFF00CEAA)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color:
-                  (isDark ? const Color(0xFF0C1526) : AppColors.primary)
-                      .withValues(alpha: isDark ? 0.5 : 0.25),
+              color: (isDark ? const Color(0xFF4A2870) : AppColors.planning)
+                  .withValues(alpha: isDark ? 0.5 : 0.25),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
@@ -186,6 +180,8 @@ class GoalsScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               '%${overallProgress.toStringAsFixed(1)}',
+              maxLines: 1,
+              softWrap: false,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 42,
@@ -200,28 +196,29 @@ class GoalsScreen extends ConsumerWidget {
               child: LinearProgressIndicator(
                 value: overallProgress / 100,
                 minHeight: 6,
-                backgroundColor:
-                    Colors.white.withValues(alpha: 0.15),
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(Colors.white),
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             ),
             const SizedBox(height: 16),
-            Container(
-                height: 1,
-                color: Colors.white.withValues(alpha: 0.12)),
+            Container(height: 1, color: Colors.white.withValues(alpha: 0.12)),
             const SizedBox(height: 16),
             Row(
               children: [
-                _overviewStat('Toplam Hedef',
-                    '₺${CurrencyUtils.formatRaw(totalTarget)}'),
+                _overviewStat(
+                  'Toplam Hedef',
+                  '₺${CurrencyUtils.formatRaw(totalTarget)}',
+                ),
                 _statDivider(),
                 _overviewStat(
-                    'Biriken', '₺${CurrencyUtils.formatRaw(totalCurrent)}'),
+                  'Biriken',
+                  '₺${CurrencyUtils.formatRaw(totalCurrent)}',
+                ),
                 _statDivider(),
                 _overviewStat(
-                    'Kalan',
-                    '₺${CurrencyUtils.formatRaw(totalTarget - totalCurrent)}'),
+                  'Kalan',
+                  '₺${CurrencyUtils.formatRaw(totalTarget - totalCurrent)}',
+                ),
               ],
             ),
           ],
@@ -231,47 +228,49 @@ class GoalsScreen extends ConsumerWidget {
   }
 
   Widget _overviewStat(String title, String value) => Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 10,
-                  letterSpacing: 0.3),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.5),
+            fontSize: 10,
+            letterSpacing: 0.3,
+          ),
         ),
-      );
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _statDivider() => Container(
-        width: 1,
-        height: 30,
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-        color: Colors.white.withValues(alpha: 0.15),
-      );
+    width: 1,
+    height: 30,
+    margin: const EdgeInsets.symmetric(horizontal: 12),
+    color: Colors.white.withValues(alpha: 0.15),
+  );
 
-  Widget _buildGoalCard(
-      BuildContext context, WidgetRef ref, GoalModel goal) {
+  Widget _buildGoalCard(BuildContext context, WidgetRef ref, GoalModel goal) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final progress = goal.progressPercent.clamp(0.0, 100.0);
     final isCompleted = goal.isCompleted;
     final daysLeft = _daysLeft(goal.targetDate);
     final monthly = _monthlyRequired(goal);
-    final color = isCompleted ? AppColors.profit : AppColors.primary;
+    final color = isCompleted
+        ? AppColors.profitFor(Theme.of(context).brightness)
+        : AppColors.planning;
+    final profitColor = AppColors.profitFor(Theme.of(context).brightness);
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final border =
-        isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -341,14 +340,14 @@ class GoalsScreen extends ConsumerWidget {
                           CircularProgressIndicator(
                             value: progress / 100,
                             strokeWidth: 5,
-                            backgroundColor:
-                                color.withValues(alpha: 0.1),
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(color),
+                            backgroundColor: color.withValues(alpha: 0.1),
+                            valueColor: AlwaysStoppedAnimation<Color>(color),
                           ),
                           Center(
                             child: Text(
                               '%${progress.toStringAsFixed(0)}',
+                              maxLines: 1,
+                              softWrap: false,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
@@ -429,14 +428,14 @@ class GoalsScreen extends ConsumerWidget {
                         height: 5,
                         decoration: BoxDecoration(
                           gradient: isCompleted
-                              ? const LinearGradient(
-                                  colors: [AppColors.primary, AppColors.profit],
+                              ? LinearGradient(
+                                  colors: [AppColors.planning, profitColor],
                                 )
                               : LinearGradient(
                                   colors: [
-                                    AppColors.primaryDark,
-                                    AppColors.primary,
-                                    AppColors.profit,
+                                    AppColors.planning,
+                                    AppColors.planning,
+                                    profitColor,
                                   ],
                                   stops: const [0.0, 0.55, 1.0],
                                 ),
@@ -454,25 +453,27 @@ class GoalsScreen extends ConsumerWidget {
                     if (daysLeft >= 0)
                       _infoChip(
                         Icons.calendar_today_outlined,
-                        daysLeft == 0
-                            ? 'Son gün!'
-                            : '$daysLeft gün kaldı',
+                        daysLeft == 0 ? 'Son gün!' : '$daysLeft gün kaldı',
                         daysLeft <= 30
                             ? AppColors.loss
                             : daysLeft <= 180
-                                ? AppColors.gold
-                                : (isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.lightTextSecondary),
+                            ? AppColors.gold
+                            : (isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary),
                       ),
                     if (monthly > 0)
                       _infoChip(
-                          Icons.savings_outlined,
-                          'Aylık ${goal.currency} ${CurrencyUtils.formatRaw(monthly)}',
-                          AppColors.gold),
+                        Icons.savings_outlined,
+                        'Aylık ${goal.currency} ${CurrencyUtils.formatRaw(monthly)}',
+                        AppColors.gold,
+                      ),
                     if (isCompleted)
-                      _infoChip(Icons.check_circle_outline_rounded,
-                          'Tamamlandı!', AppColors.profit),
+                      _infoChip(
+                        Icons.check_circle_outline_rounded,
+                        'Tamamlandı!',
+                        profitColor,
+                      ),
                   ],
                 ),
               ],
@@ -485,8 +486,7 @@ class GoalsScreen extends ConsumerWidget {
 
   Widget _infoChip(IconData icon, String label, Color color) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
@@ -534,13 +534,13 @@ class GoalsScreen extends ConsumerWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: AppColors.planning.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.flag_rounded,
                 size: 40,
-                color: AppColors.primary,
+                color: AppColors.planning,
               ),
             ),
             const SizedBox(height: 20),
@@ -549,8 +549,7 @@ class GoalsScreen extends ConsumerWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 18,
-                color:
-                    isDark ? AppColors.darkText : AppColors.lightText,
+                color: isDark ? AppColors.darkText : AppColors.lightText,
               ),
             ),
             const SizedBox(height: 8),
@@ -583,8 +582,7 @@ class GoalsScreen extends ConsumerWidget {
     );
   }
 
-  void _showGoalOptions(
-      BuildContext context, WidgetRef ref, GoalModel goal) {
+  void _showGoalOptions(BuildContext context, WidgetRef ref, GoalModel goal) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
@@ -593,8 +591,7 @@ class GoalsScreen extends ConsumerWidget {
         return Container(
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -603,8 +600,7 @@ class GoalsScreen extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Text(goal.emoji,
-                        style: const TextStyle(fontSize: 24)),
+                    Text(goal.emoji, style: const TextStyle(fontSize: 24)),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -622,12 +618,13 @@ class GoalsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 Divider(
-                    color: isDark
-                        ? AppColors.darkBorder
-                        : AppColors.lightBorder),
+                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                ),
                 ListTile(
-                  leading: const Icon(Icons.edit_outlined,
-                      color: AppColors.primary),
+                  leading: const Icon(
+                    Icons.edit_outlined,
+                    color: AppColors.planning,
+                  ),
                   title: const Text('İlerleme Güncelle'),
                   contentPadding: EdgeInsets.zero,
                   onTap: () {
@@ -636,12 +633,13 @@ class GoalsScreen extends ConsumerWidget {
                   },
                 ),
                 Divider(
-                    color: isDark
-                        ? AppColors.darkBorder
-                        : AppColors.lightBorder),
+                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                ),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline_rounded,
-                      color: AppColors.loss),
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: AppColors.loss,
+                  ),
                   title: const Text(
                     'Hedefi Sil',
                     style: TextStyle(color: AppColors.loss),
@@ -662,9 +660,13 @@ class GoalsScreen extends ConsumerWidget {
   }
 
   void _showUpdateProgress(
-      BuildContext context, WidgetRef ref, GoalModel goal) {
-    final controller =
-        TextEditingController(text: goal.currentAmount.toStringAsFixed(0));
+    BuildContext context,
+    WidgetRef ref,
+    GoalModel goal,
+  ) {
+    final controller = TextEditingController(
+      text: goal.currentAmount.toStringAsFixed(0),
+    );
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -674,8 +676,7 @@ class GoalsScreen extends ConsumerWidget {
         return Container(
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Padding(
             padding: EdgeInsets.fromLTRB(
@@ -693,16 +694,16 @@ class GoalsScreen extends ConsumerWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 18,
-                    color:
-                        isDark ? AppColors.darkText : AppColors.lightText,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
                     letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: controller,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
                   ],
@@ -716,8 +717,10 @@ class GoalsScreen extends ConsumerWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () async {
-                      final amount = double.tryParse(
-                              controller.text.replaceAll(',', '.')) ??
+                      final amount =
+                          double.tryParse(
+                            controller.text.replaceAll(',', '.'),
+                          ) ??
                           0;
                       final updated = goal.copyWith(currentAmount: amount);
                       await GoalService.update(updated);
@@ -736,17 +739,16 @@ class GoalsScreen extends ConsumerWidget {
     );
   }
 
-  void _confirmDelete(
-      BuildContext context, WidgetRef ref, GoalModel goal) {
+  void _confirmDelete(BuildContext context, WidgetRef ref, GoalModel goal) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18)),
-        title: const Text('Hedefi Sil',
-            style: TextStyle(fontWeight: FontWeight.w700)),
-        content:
-            Text('"${goal.title}" hedefini silmek istiyor musun?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Hedefi Sil',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: Text('"${goal.title}" hedefini silmek istiyor musun?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -759,8 +761,7 @@ class GoalsScreen extends ConsumerWidget {
               if (!context.mounted) return;
               Navigator.pop(context);
             },
-            child: const Text('Sil',
-                style: TextStyle(color: AppColors.loss)),
+            child: const Text('Sil', style: TextStyle(color: AppColors.loss)),
           ),
         ],
       ),

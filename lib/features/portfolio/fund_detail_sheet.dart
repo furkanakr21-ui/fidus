@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import '../../shared/models/tefas_fund_model.dart';
 import '../../shared/services/tefas_service.dart';
 
@@ -517,7 +518,7 @@ class _Returns extends StatelessWidget {
               children: items.map((item) {
                 final positive = (item.$2 ?? 0) >= 0;
                 final c = positive
-                    ? const Color(0xFF00C853)
+                    ? AppColors.profitFor(Theme.of(context).brightness)
                     : const Color(0xFFFF1744);
                 return SizedBox(
                   width: itemWidth,
@@ -721,15 +722,22 @@ class _Distribution extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _friendlyName(e.key),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: Text(
+                            _friendlyName(e.key),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           '%${pct.toStringAsFixed(1)}',
+                          maxLines: 1,
+                          softWrap: false,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,

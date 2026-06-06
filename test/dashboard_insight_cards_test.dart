@@ -1,4 +1,5 @@
 import 'package:fidus/features/dashboard/dashboard_screen.dart';
+import 'package:fidus/core/theme/app_colors.dart';
 import 'package:fidus/shared/models/asset_model.dart';
 import 'package:fidus/shared/models/daily_asset_change.dart';
 import 'package:fidus/shared/models/daily_portfolio_change.dart';
@@ -126,6 +127,15 @@ void main() {
     expect(find.text('Bugünün Lideri'), findsOneWidget);
     expect(find.text('BBB'), findsOneWidget);
     expect(find.textContaining('+5.00%'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Tümünü gör →'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      tester.widget<Text>(find.text('Tümünü gör →')).style?.color,
+      AppColors.lightPrimary,
+    );
   });
 
   testWidgets('dashboard insight cards show stable empty states', (
@@ -299,6 +309,55 @@ void main() {
       Color(0xFF13917C),
     ]);
   });
+
+  testWidgets(
+    'dark dashboard hero uses the deeper electric identity gradient',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            activePortfolioProvider.overrideWithBuild(
+              (ref, notifier) => 'portfolio-1',
+            ),
+            assetsProvider.overrideWithBuild(
+              (ref, notifier) => [_asset('AAA')],
+            ),
+            priceLoadingProvider.overrideWithBuild((ref, notifier) => false),
+            priceUpdateProvider.overrideWithBuild((ref, notifier) => null),
+            cashflowProvider.overrideWithBuild((ref, notifier) => const []),
+            goalsProvider.overrideWithBuild((ref, notifier) => const []),
+            currencyProvider.overrideWithBuild((ref, notifier) => 'TRY'),
+            dailyPortfolioChangeProvider.overrideWithValue(
+              const DailyPortfolioChange(
+                hasSnapshot: false,
+                currentValue: 0,
+                baselineValue: 0,
+                amount: 0,
+                percent: 0,
+                displayCurrency: 'TRY',
+              ),
+            ),
+            dailyAssetChangesProvider.overrideWithValue(const {}),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark(),
+            home: const DashboardScreen(),
+          ),
+        ),
+      );
+
+      final hero = tester.widget<Container>(
+        find.byKey(const Key('dashboard-hero-card')),
+      );
+      final decoration = hero.decoration! as BoxDecoration;
+      final gradient = decoration.gradient! as LinearGradient;
+      expect(gradient.colors, const [
+        Color(0xFF0B334B),
+        Color(0xFF005A4B),
+        Color(0xFF008A67),
+      ]);
+    },
+  );
 
   testWidgets('fund discovery card opens the TEFAS browser route', (
     tester,

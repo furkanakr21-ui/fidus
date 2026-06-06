@@ -39,7 +39,9 @@ class PositionSheet extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = _colorForAsset(current);
     final isProfit = current.profitLoss >= 0;
-    final plColor = isProfit ? AppColors.profit : AppColors.loss;
+    final plColor = isProfit
+        ? AppColors.profitFor(Theme.of(context).brightness)
+        : AppColors.loss;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return Container(
@@ -254,10 +256,12 @@ class PositionSheet extends ConsumerWidget {
                       icon: const Icon(Icons.add_rounded, size: 18),
                       label: const Text('Alış Ekle'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.profit.withValues(
-                          alpha: 0.12,
+                        backgroundColor: AppColors.profitFor(
+                          Theme.of(context).brightness,
+                        ).withValues(alpha: 0.12),
+                        foregroundColor: AppColors.profitFor(
+                          Theme.of(context).brightness,
                         ),
-                        foregroundColor: AppColors.profit,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
@@ -504,18 +508,18 @@ class PositionSheet extends ConsumerWidget {
 
   Color _colorForAsset(AssetModel a) {
     const colors = {
-      AssetType.stock: AppColors.primary,
-      AssetType.crypto: Color(0xFFF59E0B),
-      AssetType.currency: Color(0xFF10B981),
-      AssetType.commodity: AppColors.gold,
-      AssetType.fund: Color(0xFF06B6D4),
-      AssetType.cash: Color(0xFF66BB6A),
-      AssetType.realEstate: Color(0xFFEF5350),
+      AssetType.stock: AppColors.market,
+      AssetType.crypto: AppColors.cashFlow,
+      AssetType.currency: AppColors.profit,
+      AssetType.commodity: AppColors.cashFlow,
+      AssetType.fund: AppColors.planning,
+      AssetType.cash: AppColors.profit,
+      AssetType.realEstate: AppColors.planning,
     };
     if (a.type == AssetType.fund && a.apiSource == 'befas') {
-      return const Color(0xFF00897B);
+      return AppColors.planning;
     }
-    return colors[a.type] ?? AppColors.primary;
+    return colors[a.type] ?? AppColors.market;
   }
 
   String _formatQty(double qty) {

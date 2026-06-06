@@ -55,7 +55,7 @@ class _EditAssetScreenState extends ConsumerState<EditAssetScreen> {
             child: const Text(
               'Kaydet',
               style: TextStyle(
-                color: AppColors.primary,
+                color: AppColors.market,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -73,10 +73,10 @@ class _EditAssetScreenState extends ConsumerState<EditAssetScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
+                  color: AppColors.market.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.2),
+                    color: AppColors.market.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Row(
@@ -85,7 +85,7 @@ class _EditAssetScreenState extends ConsumerState<EditAssetScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
+                        color: AppColors.market.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Center(
@@ -96,7 +96,7 @@ class _EditAssetScreenState extends ConsumerState<EditAssetScreen> {
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.primary,
+                            color: AppColors.market,
                           ),
                         ),
                       ),
@@ -232,7 +232,7 @@ class _EditAssetScreenState extends ConsumerState<EditAssetScreen> {
         ),
         focusedBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(10)),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
+          borderSide: BorderSide(color: AppColors.market, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
@@ -267,7 +267,7 @@ class _EditAssetScreenState extends ConsumerState<EditAssetScreen> {
             const Icon(
               Icons.calendar_today_outlined,
               size: 16,
-              color: AppColors.primary,
+              color: AppColors.market,
             ),
             const SizedBox(width: 8),
             Column(

@@ -16,24 +16,33 @@ class BudgetScreen extends ConsumerWidget {
     final totalDeposit = cashflows
         .where((c) => c.type == CashFlowType.deposit)
         .fold(
-            0.0,
-            (sum, c) => sum +
-                CurrencyUtils.cashFlowToTry(c.amount, c.currency,
-                    rateAtEntry: c.rateAtEntry));
+          0.0,
+          (sum, c) =>
+              sum +
+              CurrencyUtils.cashFlowToTry(
+                c.amount,
+                c.currency,
+                rateAtEntry: c.rateAtEntry,
+              ),
+        );
     final totalWithdrawal = cashflows
         .where((c) => c.type == CashFlowType.withdrawal)
         .fold(
-            0.0,
-            (sum, c) => sum +
-                CurrencyUtils.cashFlowToTry(c.amount, c.currency,
-                    rateAtEntry: c.rateAtEntry));
+          0.0,
+          (sum, c) =>
+              sum +
+              CurrencyUtils.cashFlowToTry(
+                c.amount,
+                c.currency,
+                rateAtEntry: c.rateAtEntry,
+              ),
+        );
     final netFlow = totalDeposit - totalWithdrawal;
     final isPositive = netFlow >= 0;
 
     final Map<String, List<CashFlowModel>> grouped = {};
     for (final c in sorted) {
-      final key =
-          '${c.date.year}-${c.date.month.toString().padLeft(2, '0')}';
+      final key = '${c.date.year}-${c.date.month.toString().padLeft(2, '0')}';
       grouped.putIfAbsent(key, () => []).add(c);
     }
     final months = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
@@ -41,9 +50,8 @@ class BudgetScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: () async =>
-              ref.read(cashflowProvider.notifier).load(),
+          color: AppColors.cashFlow,
+          onRefresh: () async => ref.read(cashflowProvider.notifier).load(),
           child: CustomScrollView(
             slivers: [
               SliverToBoxAdapter(child: _buildHeader(context)),
@@ -58,8 +66,7 @@ class BudgetScreen extends ConsumerWidget {
                 ),
               ),
               cashflows.isEmpty
-                  ? SliverToBoxAdapter(
-                      child: _buildEmptyState(context))
+                  ? SliverToBoxAdapter(child: _buildEmptyState(context))
                   : SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) => _buildMonthGroup(
@@ -118,36 +125,40 @@ class BudgetScreen extends ConsumerWidget {
     bool isPositive,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final netColor = isPositive ? AppColors.profit : AppColors.loss;
-    final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final border =
-        isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final netColor = isPositive
+        ? AppColors.profitFor(Theme.of(context).brightness)
+        : AppColors.loss;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Container(
+        key: const Key('cash-flow-summary-card'),
         decoration: BoxDecoration(
-          color: bg,
+          gradient: LinearGradient(
+            colors: isDark
+                ? const [
+                    Color(0xFF4A3910),
+                    Color(0xFF80620A),
+                    Color(0xFFB88B00),
+                  ]
+                : const [
+                    Color(0xFFFFF3D6),
+                    Color(0xFFFFE6AD),
+                    Color(0xFFF8D486),
+                  ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: border),
+          border: Border.all(
+            color: isDark
+                ? AppColors.cashFlow.withValues(alpha: 0.3)
+                : AppColors.cashFlow.withValues(alpha: 0.4),
+          ),
         ),
         child: Column(
           children: [
-            // Colored top accent
-            Container(
-              height: 3,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isPositive
-                      ? [AppColors.profit, const Color(0xFF34D399)]
-                      : [AppColors.loss, const Color(0xFFFB7185)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
               child: Column(
@@ -184,7 +195,9 @@ class BudgetScreen extends ConsumerWidget {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: netColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
@@ -218,16 +231,29 @@ class BudgetScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      _summaryCell(context, isDark, 'Toplam Giriş',
-                          '₺${CurrencyUtils.formatRaw(totalDeposit)}',
-                          AppColors.profit),
+                      _summaryCell(
+                        context,
+                        isDark,
+                        'Toplam Giriş',
+                        '₺${CurrencyUtils.formatRaw(totalDeposit)}',
+                        AppColors.profitFor(Theme.of(context).brightness),
+                      ),
                       _cellDivider(isDark),
-                      _summaryCell(context, isDark, 'Toplam Çıkış',
-                          '₺${CurrencyUtils.formatRaw(totalWithdrawal)}',
-                          AppColors.loss),
+                      _summaryCell(
+                        context,
+                        isDark,
+                        'Toplam Çıkış',
+                        '₺${CurrencyUtils.formatRaw(totalWithdrawal)}',
+                        AppColors.loss,
+                      ),
                       _cellDivider(isDark),
-                      _summaryCell(context, isDark, 'İşlem',
-                          '$count adet', AppColors.primary),
+                      _summaryCell(
+                        context,
+                        isDark,
+                        'İşlem',
+                        '$count adet',
+                        isDark ? AppColors.darkText : AppColors.lightText,
+                      ),
                     ],
                   ),
                 ],
@@ -239,8 +265,13 @@ class BudgetScreen extends ConsumerWidget {
     );
   }
 
-  Widget _summaryCell(BuildContext context, bool isDark, String label,
-      String value, Color accent) {
+  Widget _summaryCell(
+    BuildContext context,
+    bool isDark,
+    String label,
+    String value,
+    Color accent,
+  ) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,11 +301,11 @@ class BudgetScreen extends ConsumerWidget {
   }
 
   Widget _cellDivider(bool isDark) => Container(
-        width: 1,
-        height: 32,
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-      );
+    width: 1,
+    height: 32,
+    margin: const EdgeInsets.symmetric(horizontal: 12),
+    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+  );
 
   Widget _buildMonthGroup(
     BuildContext context,
@@ -304,20 +335,32 @@ class BudgetScreen extends ConsumerWidget {
     final deposit = items
         .where((c) => c.type == CashFlowType.deposit)
         .fold(
-            0.0,
-            (sum, c) => sum +
-                CurrencyUtils.cashFlowToTry(c.amount, c.currency,
-                    rateAtEntry: c.rateAtEntry));
+          0.0,
+          (sum, c) =>
+              sum +
+              CurrencyUtils.cashFlowToTry(
+                c.amount,
+                c.currency,
+                rateAtEntry: c.rateAtEntry,
+              ),
+        );
     final withdrawal = items
         .where((c) => c.type == CashFlowType.withdrawal)
         .fold(
-            0.0,
-            (sum, c) => sum +
-                CurrencyUtils.cashFlowToTry(c.amount, c.currency,
-                    rateAtEntry: c.rateAtEntry));
+          0.0,
+          (sum, c) =>
+              sum +
+              CurrencyUtils.cashFlowToTry(
+                c.amount,
+                c.currency,
+                rateAtEntry: c.rateAtEntry,
+              ),
+        );
     final net = deposit - withdrawal;
     final isPositive = net >= 0;
-    final netColor = isPositive ? AppColors.profit : AppColors.loss;
+    final netColor = isPositive
+        ? AppColors.profitFor(Theme.of(context).brightness)
+        : AppColors.loss;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -334,20 +377,19 @@ class BudgetScreen extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: isDark
-                        ? AppColors.darkText
-                        : AppColors.lightText,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
                     letterSpacing: -0.3,
                   ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: netColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border:
-                        Border.all(color: netColor.withValues(alpha: 0.2)),
+                    border: Border.all(color: netColor.withValues(alpha: 0.2)),
                   ),
                   child: Text(
                     '${isPositive ? '+' : ''}₺${CurrencyUtils.formatRaw(net)}',
@@ -361,8 +403,7 @@ class BudgetScreen extends ConsumerWidget {
               ],
             ),
           ),
-          ...items
-              .map((c) => _buildCashFlowCard(context, ref, c)),
+          ...items.map((c) => _buildCashFlowCard(context, ref, c)),
         ],
       ),
     );
@@ -375,18 +416,18 @@ class BudgetScreen extends ConsumerWidget {
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isDeposit = cashflow.type == CashFlowType.deposit;
-    final color = isDeposit ? AppColors.profit : AppColors.loss;
+    final color = isDeposit
+        ? AppColors.profitFor(Theme.of(context).brightness)
+        : AppColors.loss;
     final bg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final border =
-        isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
         onLongPress: () => _confirmDelete(context, ref, cashflow.id),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(14),
@@ -469,13 +510,13 @@ class BudgetScreen extends ConsumerWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: AppColors.cashFlow.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.swap_vert_rounded,
                 size: 36,
-                color: AppColors.primary,
+                color: AppColors.cashFlow,
               ),
             ),
             const SizedBox(height: 16),
@@ -484,8 +525,7 @@ class BudgetScreen extends ConsumerWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
-                color:
-                    isDark ? AppColors.darkText : AppColors.lightText,
+                color: isDark ? AppColors.darkText : AppColors.lightText,
               ),
             ),
             const SizedBox(height: 8),
@@ -505,15 +545,12 @@ class BudgetScreen extends ConsumerWidget {
     );
   }
 
-  void _confirmDelete(
-      BuildContext context, WidgetRef ref, String id) {
+  void _confirmDelete(BuildContext context, WidgetRef ref, String id) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18)),
-        title: const Text('Sil',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Sil', style: TextStyle(fontWeight: FontWeight.w700)),
         content: const Text('Bu işlemi silmek istiyor musun?'),
         actions: [
           TextButton(
@@ -526,8 +563,7 @@ class BudgetScreen extends ConsumerWidget {
               if (!context.mounted) return;
               Navigator.pop(context);
             },
-            child: const Text('Sil',
-                style: TextStyle(color: AppColors.loss)),
+            child: const Text('Sil', style: TextStyle(color: AppColors.loss)),
           ),
         ],
       ),

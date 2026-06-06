@@ -44,8 +44,9 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
     final bg = isDark ? AppColors.darkCard : Colors.white;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
     final textPrimary = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSecondary =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return Container(
       decoration: BoxDecoration(
@@ -60,7 +61,11 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
         ],
       ),
       padding: EdgeInsets.fromLTRB(
-          20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 28),
+        20,
+        12,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 28,
+      ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -87,14 +92,17 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                   height: 44,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [AppColors.primary, Color(0xFF08C49A)],
+                      colors: [AppColors.planning, Color(0xFF8C75D4)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: const Icon(Icons.flag_rounded,
-                      color: Colors.white, size: 22),
+                  child: const Icon(
+                    Icons.flag_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -112,10 +120,7 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                       ),
                       Text(
                         'Finansal hedefini belirle',
-                        style: TextStyle(
-                          color: textSecondary,
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: textSecondary, fontSize: 12),
                       ),
                     ],
                   ),
@@ -128,7 +133,8 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                         ? Colors.white.withValues(alpha: 0.07)
                         : Colors.black.withValues(alpha: 0.05),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ],
@@ -147,29 +153,30 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                 itemBuilder: (ctx, i) {
                   final selected = _selectedEmoji == _emojis[i];
                   return GestureDetector(
-                    onTap: () =>
-                        setState(() => _selectedEmoji = _emojis[i]),
+                    onTap: () => setState(() => _selectedEmoji = _emojis[i]),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
                         color: selected
-                            ? AppColors.primary.withValues(alpha: 0.12)
+                            ? AppColors.planning.withValues(alpha: 0.12)
                             : (isDark
-                                ? Colors.white.withValues(alpha: 0.05)
-                                : Colors.black.withValues(alpha: 0.04)),
+                                  ? Colors.white.withValues(alpha: 0.05)
+                                  : Colors.black.withValues(alpha: 0.04)),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: selected
-                              ? AppColors.primary
+                              ? AppColors.planning
                               : Colors.transparent,
                           width: 1.5,
                         ),
                       ),
                       child: Center(
-                        child: Text(_emojis[i],
-                            style: const TextStyle(fontSize: 22)),
+                        child: Text(
+                          _emojis[i],
+                          style: const TextStyle(fontSize: 22),
+                        ),
                       ),
                     ),
                   );
@@ -210,10 +217,10 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
                         color: selected
-                            ? AppColors.primary
+                            ? AppColors.planning
                             : (isDark
-                                ? Colors.white.withValues(alpha: 0.05)
-                                : Colors.black.withValues(alpha: 0.04)),
+                                  ? Colors.white.withValues(alpha: 0.05)
+                                  : Colors.black.withValues(alpha: 0.04)),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -275,10 +282,9 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                         ),
                         dropdownColor: bg,
                         items: ['TRY', 'USD', 'EUR']
-                            .map((c) => DropdownMenuItem(
-                                  value: c,
-                                  child: Text(c),
-                                ))
+                            .map(
+                              (c) => DropdownMenuItem(value: c, child: Text(c)),
+                            )
                             .toList(),
                         onChanged: (v) =>
                             setState(() => _selectedCurrency = v!),
@@ -314,8 +320,7 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
               onTap: () async {
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate:
-                      DateTime.now().add(const Duration(days: 365)),
+                  initialDate: DateTime.now().add(const Duration(days: 365)),
                   firstDate: DateTime.now(),
                   lastDate: DateTime(2100),
                 );
@@ -324,7 +329,9 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 14),
+                  horizontal: 14,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.05)
@@ -338,13 +345,13 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
+                        color: AppColors.planning.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
                         Icons.calendar_today_rounded,
                         size: 15,
-                        color: AppColors.primary,
+                        color: AppColors.planning,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -364,12 +371,18 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                     if (_targetDate != null)
                       GestureDetector(
                         onTap: () => setState(() => _targetDate = null),
-                        child: Icon(Icons.close_rounded,
-                            size: 16, color: textSecondary),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 16,
+                          color: textSecondary,
+                        ),
                       )
                     else
-                      Icon(Icons.chevron_right_rounded,
-                          size: 18, color: textSecondary),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: textSecondary,
+                      ),
                   ],
                 ),
               ),
@@ -383,11 +396,12 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
               child: ElevatedButton(
                 onPressed: _save,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: AppColors.planning,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -395,7 +409,9 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                     Text(
                       '$_selectedEmoji  Hedef Oluştur',
                       style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 15),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
                   ],
                 ),
@@ -408,14 +424,14 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
   }
 
   Widget _sectionLabel(String text, Color color) => Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: color,
-          letterSpacing: 0.2,
-        ),
-      );
+    text,
+    style: TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: color,
+      letterSpacing: 0.2,
+    ),
+  );
 
   Widget _styledField({
     required TextEditingController controller,
@@ -436,7 +452,10 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
           ? [FilteringTextInputFormatter.allow(RegExp(r'[\d.,]'))]
           : null,
       style: TextStyle(
-          color: textColor, fontSize: 14, fontWeight: FontWeight.w500),
+        color: textColor,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: hintColor, fontSize: 14),
@@ -453,11 +472,12 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.planning, width: 1.5),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 13,
+        ),
       ),
     );
   }
@@ -468,9 +488,9 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
     final targetAmount = double.tryParse(targetText);
 
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Hedef başlığı boş olamaz')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Hedef başlığı boş olamaz')));
       return;
     }
     if (targetAmount == null || targetAmount <= 0) {

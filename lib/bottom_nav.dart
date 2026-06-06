@@ -139,7 +139,9 @@ class BottomNav extends ConsumerWidget {
                       _QuickAddTile(
                         icon: Icons.trending_up_rounded,
                         label: 'Varlık',
-                        color: AppColors.primary,
+                        color: AppColors.accentFor(
+                          Theme.of(context).brightness,
+                        ),
                         isDark: isDark,
                         onTap: () {
                           Navigator.pop(sheetCtx);
@@ -184,7 +186,9 @@ class BottomNav extends ConsumerWidget {
                       _QuickAddTile(
                         icon: Icons.arrow_downward_rounded,
                         label: 'Para Girişi',
-                        color: AppColors.profit,
+                        color: AppColors.profitFor(
+                          Theme.of(context).brightness,
+                        ),
                         isDark: isDark,
                         onTap: () {
                           Navigator.pop(sheetCtx);
@@ -285,9 +289,12 @@ class FidusBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final surfaceColor = isDark
-        ? AppColors.darkSurface.withValues(alpha: 0.07)
-        : Colors.white.withValues(alpha: 0.10);
+        ? AppColors.darkSurface.withValues(alpha: 0.21)
+        : Colors.white.withValues(alpha: 0.25);
     final accent = isDark ? AppColors.primary : AppColors.lightPrimary;
+    final outlineColor = isDark
+        ? AppColors.market.withValues(alpha: 0.20)
+        : AppColors.lightPrimary.withValues(alpha: 0.16);
 
     return SafeArea(
       top: false,
@@ -308,13 +315,14 @@ class FidusBottomNavigation extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(25),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
               child: Container(
                 key: const Key('fidus-nav-surface'),
                 height: 50,
                 decoration: BoxDecoration(
                   color: surfaceColor,
                   borderRadius: BorderRadius.circular(25),
+                  border: Border.all(color: outlineColor),
                 ),
                 child: Row(
                   children: _items.asMap().entries.map((entry) {
