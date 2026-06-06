@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'shared/providers.dart';
@@ -29,20 +31,22 @@ class BottomNav extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: IndexedStack(
-        index: currentIndex,
-        children: _screens,
+      body: FidusNavigationLayer(
+        body: IndexedStack(index: currentIndex, children: _screens),
+        navigation: FidusBottomNavigation(
+          currentIndex: currentIndex,
+          isDark: isDark,
+          onTap: (index) => ref.read(tabIndexProvider.notifier).setTab(index),
+        ),
+        action: _buildFab(context, ref),
       ),
-      floatingActionButton: _buildFab(context, ref),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: _buildPillNav(context, ref, currentIndex, isDark),
     );
   }
 
   Widget _buildFab(BuildContext context, WidgetRef ref) {
     return Container(
-      width: 52,
-      height: 52,
+      width: 48,
+      height: 48,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: const LinearGradient(
@@ -71,63 +75,6 @@ class BottomNav extends ConsumerWidget {
     );
   }
 
-  Widget _buildPillNav(
-      BuildContext context, WidgetRef ref, int currentIndex, bool isDark) {
-    final items = [
-      (Icons.home_outlined, Icons.home_rounded),
-      (Icons.pie_chart_outline_rounded, Icons.pie_chart_rounded),
-      (Icons.swap_vert_outlined, Icons.swap_vert_rounded),
-      (Icons.flag_outlined, Icons.flag_rounded),
-      (Icons.settings_outlined, Icons.settings_rounded),
-    ];
-
-    return Container(
-      color: Colors.transparent,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-          child: Container(
-            height: 66,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? AppColors.darkCard.withValues(alpha: 0.97)
-                  : Colors.white.withValues(alpha: 0.97),
-              borderRadius: BorderRadius.circular(33),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black
-                      .withValues(alpha: isDark ? 0.48 : 0.09),
-                  blurRadius: 30,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: items.asMap().entries.map((entry) {
-                final index = entry.key;
-                final item = entry.value;
-                final isSelected = currentIndex == index;
-                return _NavItem(
-                  icon: item.$1,
-                  selectedIcon: item.$2,
-                  isSelected: isSelected,
-                  isDark: isDark,
-                  onTap: () =>
-                      ref.read(tabIndexProvider.notifier).setTab(index),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showQuickAddSheet(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
@@ -137,8 +84,7 @@ class BottomNav extends ConsumerWidget {
         return Container(
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             border: Border(
               top: BorderSide(
                 color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
@@ -171,8 +117,7 @@ class BottomNav extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 19,
                       fontWeight: FontWeight.w800,
-                      color:
-                          isDark ? AppColors.darkText : AppColors.lightText,
+                      color: isDark ? AppColors.darkText : AppColors.lightText,
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -195,7 +140,8 @@ class BottomNav extends ConsumerWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (_) => const AddAssetScreen()),
+                              builder: (_) => const AddAssetScreen(),
+                            ),
                           );
                         },
                       ),
@@ -209,7 +155,8 @@ class BottomNav extends ConsumerWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (_) => const TefasBrowserScreen()),
+                              builder: (_) => const TefasBrowserScreen(),
+                            ),
                           );
                         },
                       ),
@@ -273,8 +220,125 @@ class BottomNav extends ConsumerWidget {
   }
 }
 
+class FidusNavigationLayer extends StatelessWidget {
+  final Widget body;
+  final Widget navigation;
+  final Widget action;
+
+  const FidusNavigationLayer({
+    super.key,
+    required this.body,
+    required this.navigation,
+    required this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
+
+    return Stack(
+      key: const Key('fidus-navigation-layer'),
+      fit: StackFit.expand,
+      children: [
+        MediaQuery.removePadding(
+          context: context,
+          removeBottom: true,
+          child: body,
+        ),
+        Align(alignment: Alignment.bottomCenter, child: navigation),
+        Positioned(right: 20, bottom: safeBottom + 66, child: action),
+      ],
+    );
+  }
+}
+
+class FidusBottomNavigation extends StatelessWidget {
+  final int currentIndex;
+  final bool isDark;
+  final ValueChanged<int> onTap;
+
+  const FidusBottomNavigation({
+    super.key,
+    required this.currentIndex,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  static const _items = [
+    ('Anasayfa', Icons.home_outlined, Icons.home_rounded),
+    ('Portföy', Icons.pie_chart_outline_rounded, Icons.pie_chart_rounded),
+    (
+      'Nakit Akışı',
+      Icons.account_balance_wallet_outlined,
+      Icons.account_balance_wallet_rounded,
+    ),
+    ('Hedefler', Icons.flag_outlined, Icons.flag_rounded),
+    ('Ayarlar', Icons.settings_outlined, Icons.settings_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaceColor = isDark
+        ? AppColors.darkSurface.withValues(alpha: 0.68)
+        : Colors.white.withValues(alpha: 0.76);
+
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 22),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.34 : 0.10),
+                blurRadius: 28,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(25),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Container(
+                key: const Key('fidus-nav-surface'),
+                height: 50,
+                decoration: BoxDecoration(
+                  color: surfaceColor,
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: Row(
+                  children: _items.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final item = entry.value;
+                    return Expanded(
+                      child: _NavItem(
+                        index: index,
+                        label: item.$1,
+                        icon: item.$2,
+                        selectedIcon: item.$3,
+                        isSelected: currentIndex == index,
+                        isDark: isDark,
+                        onTap: () => onTap(index),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Nav Item ──────────────────────────────────────────────────────────────
 class _NavItem extends StatelessWidget {
+  final int index;
+  final String label;
   final IconData icon;
   final IconData selectedIcon;
   final bool isSelected;
@@ -282,6 +346,8 @@ class _NavItem extends StatelessWidget {
   final VoidCallback onTap;
 
   const _NavItem({
+    required this.index,
+    required this.label,
     required this.icon,
     required this.selectedIcon,
     required this.isSelected,
@@ -291,45 +357,55 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final inactive =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 60,
-        height: 66,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primary.withValues(alpha: 0.12)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
+    final inactive = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    return Semantics(
+      label: label,
+      button: true,
+      selected: isSelected,
+      child: GestureDetector(
+        key: Key('fidus-nav-item-$index'),
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox.expand(
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              AnimatedScale(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                scale: isSelected ? 1.06 : 1,
+                child: ExcludeSemantics(
+                  child: Icon(
+                    isSelected ? selectedIcon : icon,
+                    size: 20,
+                    color: isSelected ? AppColors.primary : inactive,
+                  ),
+                ),
               ),
-              child: Icon(
-                isSelected ? selectedIcon : icon,
-                size: 22,
-                color: isSelected ? AppColors.primary : inactive,
-              ),
-            ),
-            const SizedBox(height: 4),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-              width: isSelected ? 20 : 0,
-              height: 3,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ],
+              if (isSelected)
+                Positioned(
+                  bottom: 0,
+                  child: Container(
+                    key: Key('fidus-nav-selected-indicator-$index'),
+                    width: 20,
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.75),
+                          blurRadius: 7,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
