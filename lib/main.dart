@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'shared/providers.dart';
 import 'shared/services/auth_service.dart';
 import 'shared/services/supabase_service.dart';
 import 'bottom_nav.dart';
+import 'features/startup/startup_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   runApp(const ProviderScope(child: FidusApp()));
 }
@@ -35,14 +34,14 @@ class FidusApp extends ConsumerWidget {
   }
 }
 
-class _AuthGate extends StatefulWidget {
+class _AuthGate extends ConsumerStatefulWidget {
   const _AuthGate();
 
   @override
-  State<_AuthGate> createState() => _AuthGateState();
+  ConsumerState<_AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<_AuthGate> {
+class _AuthGateState extends ConsumerState<_AuthGate> {
   bool _initializing = true;
 
   @override
@@ -60,20 +59,13 @@ class _AuthGateState extends State<_AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    if (_initializing) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-    return const AppInitializer();
-  }
-}
-
-class AppInitializer extends ConsumerWidget {
-  const AppInitializer({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return const BottomNav();
+    final dataReady = !_initializing && ref.watch(initialDataReadyProvider);
+    return StartupGate(
+      isReady: dataReady,
+      timeoutEnabled: !_initializing,
+      child: _initializing
+          ? const ColoredBox(color: AppColors.darkBackground)
+          : const BottomNav(),
+    );
   }
 }

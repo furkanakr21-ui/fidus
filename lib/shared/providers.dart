@@ -21,6 +21,40 @@ import 'services/supabase_service.dart';
 import 'services/transaction_service.dart';
 import 'utils/currency_utils.dart';
 
+class InitialDataLoadTracker extends Notifier<Set<String>> {
+  static const portfolios = 'portfolios';
+  static const assets = 'assets';
+  static const cashflows = 'cashflows';
+  static const goals = 'goals';
+  static const currency = 'currency';
+
+  static const requiredSections = {
+    portfolios,
+    assets,
+    cashflows,
+    goals,
+    currency,
+  };
+
+  @override
+  Set<String> build() => {};
+
+  void markLoading(String section) {
+    if (!state.contains(section)) return;
+    state = {...state}..remove(section);
+  }
+
+  void markReady(String section) {
+    if (state.contains(section)) return;
+    state = {...state, section};
+  }
+}
+
+final initialDataLoadTrackerProvider =
+    NotifierProvider<InitialDataLoadTracker, Set<String>>(
+      InitialDataLoadTracker.new,
+    );
+
 // ─────────────────────────────────────────
 // Portföyler
 // ─────────────────────────────────────────
@@ -33,7 +67,13 @@ class PortfoliosNotifier extends Notifier<List<PortfolioModel>> {
   }
 
   Future<void> load() async {
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markLoading(InitialDataLoadTracker.portfolios);
     state = await PortfolioService.getAll();
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markReady(InitialDataLoadTracker.portfolios);
   }
 
   Future<PortfolioModel> create(String name, String emoji) async {
@@ -309,10 +349,16 @@ class AssetsNotifier extends Notifier<List<AssetModel>> {
   }
 
   Future<void> _load(String portfolioId) async {
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markLoading(InitialDataLoadTracker.assets);
     final raw = await AssetService.getByPortfolio(portfolioId);
     final prices = ref.read(pricesProvider);
     final rate = ref.read(exchangeRatesProvider)['TRY'] ?? 1.0;
     state = _applyPrices(raw, prices, rate);
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markReady(InitialDataLoadTracker.assets);
   }
 
   List<AssetModel> _applyPrices(
@@ -449,6 +495,9 @@ class PricesNotifier extends Notifier<Map<String, PriceRecord>> {
         row['price_currency'] as String? ?? 'TRY',
       );
     }
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markLoading(InitialDataLoadTracker.assets);
     state = map;
     ref.read(assetsProvider.notifier).applyCurrentPrices();
   }
@@ -494,6 +543,9 @@ class ExchangeRatesNotifier extends Notifier<Map<String, double>> {
     for (final row in data as List) {
       map[row['currency'] as String] = (row['rate_per_usd'] as num).toDouble();
     }
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markLoading(InitialDataLoadTracker.assets);
     state = map;
     CurrencyUtils.updateRates(map);
     ref.read(assetsProvider.notifier).applyCurrentPrices();
@@ -545,7 +597,13 @@ class CashFlowNotifier extends Notifier<List<CashFlowModel>> {
   }
 
   Future<void> _load(String portfolioId) async {
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markLoading(InitialDataLoadTracker.cashflows);
     state = await CashFlowService.getByPortfolio(portfolioId);
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markReady(InitialDataLoadTracker.cashflows);
   }
 
   Future<void> load() async {
@@ -604,7 +662,13 @@ class GoalsNotifier extends Notifier<List<GoalModel>> {
   }
 
   Future<void> _load(String portfolioId) async {
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markLoading(InitialDataLoadTracker.goals);
     state = await GoalService.getByPortfolio(portfolioId);
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markReady(InitialDataLoadTracker.goals);
   }
 
   Future<void> load() async {
@@ -743,8 +807,14 @@ class CurrencyNotifier extends Notifier<String> {
   }
 
   Future<void> _load() async {
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markLoading(InitialDataLoadTracker.currency);
     final s = await PortfolioService.getSettings();
     state = s['currency'] ?? 'TRY';
+    ref
+        .read(initialDataLoadTrackerProvider.notifier)
+        .markReady(InitialDataLoadTracker.currency);
   }
 
   Future<void> setCurrency(String currency) async {
@@ -825,6 +895,31 @@ class PriceUpdateNotifier extends Notifier<DateTime?> {
 final priceUpdateProvider = NotifierProvider<PriceUpdateNotifier, DateTime?>(
   PriceUpdateNotifier.new,
 );
+
+// İlk açılışta anasayfanın boş başlangıç değerleriyle görünmesini engeller.
+// Sağlayıcılar mevcut otomatik yükleme düzenlerini korur; ek API çağrısı yapılmaz.
+final initialDataReadyProvider = Provider<bool>((ref) {
+  final completedSections = ref.watch(initialDataLoadTrackerProvider);
+  final portfolios = ref.watch(portfoliosProvider);
+  if (!completedSections.contains(InitialDataLoadTracker.portfolios)) {
+    return false;
+  }
+
+  final activePortfolioId = ref.watch(activePortfolioProvider);
+  if (activePortfolioId.isEmpty) return portfolios.isEmpty;
+
+  final pricesReady = ref.watch(pricesProvider).isNotEmpty;
+  final exchangeRatesReady = ref.watch(exchangeRatesProvider).isNotEmpty;
+  final assetSnapshotsReady = ref.watch(todayAssetSnapshotsProvider) != null;
+  final dashboardSectionsReady = completedSections.containsAll(
+    InitialDataLoadTracker.requiredSections,
+  );
+
+  return pricesReady &&
+      exchangeRatesReady &&
+      assetSnapshotsReady &&
+      dashboardSectionsReady;
+});
 
 // Alt navigasyon
 class TabIndexNotifier extends Notifier<int> {

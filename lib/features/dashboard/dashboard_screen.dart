@@ -255,9 +255,7 @@ class DashboardScreen extends ConsumerWidget {
     final accent = isDark ? AppColors.primary : AppColors.lightPrimary;
     final isProfit = dailyChange.isProfit;
     final plColor = dailyChange.hasSnapshot
-        ? (isProfit
-              ? AppColors.profitFor(Theme.of(context).brightness)
-              : AppColors.loss)
+        ? (isProfit ? AppColors.profit : AppColors.loss)
         : AppColors.gold;
     final dailyAmountText = dailyChange.hasSnapshot
         ? dailyChange.formatAmount()
