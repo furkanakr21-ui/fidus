@@ -187,6 +187,9 @@ begin
             case
               when coalesce(a.api_source, 'manual') = 'tefas' then 'befas'
               when coalesce(a.api_source, 'manual') = 'befas' then 'tefas'
+              when a.type = 'fund'
+                and coalesce(a.api_source, 'manual') = 'finance-api'
+                then 'tefas'
               else coalesce(a.api_source, 'manual')
             end
           )
@@ -209,6 +212,9 @@ begin
             case
               when coalesce(a.api_source, 'manual') = 'tefas' then 'befas'
               when coalesce(a.api_source, 'manual') = 'befas' then 'tefas'
+              when a.type = 'fund'
+                and coalesce(a.api_source, 'manual') = 'finance-api'
+                then 'tefas'
               else coalesce(a.api_source, 'manual')
             end
           )

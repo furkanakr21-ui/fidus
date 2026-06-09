@@ -19,6 +19,7 @@ import 'services/portfolio_service.dart';
 import 'services/portfolio_snapshot_service.dart';
 import 'services/supabase_service.dart';
 import 'services/transaction_service.dart';
+import 'utils/asset_price_lookup.dart';
 import 'utils/currency_utils.dart';
 
 class InitialDataLoadTracker extends Notifier<Set<String>> {
@@ -367,16 +368,7 @@ class AssetsNotifier extends Notifier<List<AssetModel>> {
     double usdToTry,
   ) {
     return assets.map((a) {
-      final baseKey = a.apiId ?? a.symbol;
-      final src = a.apiSource ?? 'manual';
-      // Önce asıl key'e bak; bulamazsan karşı tarafı dene (tefas↔befas sınıflandırma
-      // değişimi sonucu oluşan api_source uyumsuzluğunu giderir).
-      final altSrc = src == 'tefas'
-          ? 'befas'
-          : (src == 'befas' ? 'tefas' : null);
-      final rec =
-          prices['${baseKey}_$src'] ??
-          (altSrc != null ? prices['${baseKey}_$altSrc'] : null);
+      final rec = firstPriceForAsset(a, prices);
       if (rec == null || rec.price <= 0) {
         return a.copyWith(usdToTry: usdToTry);
       }
