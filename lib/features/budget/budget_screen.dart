@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../shared/models/income_expense_model.dart';
 import '../../shared/providers.dart';
 import '../../shared/utils/currency_utils.dart';
+import 'cashflow_detail_sheet.dart';
 
 class BudgetScreen extends ConsumerWidget {
   const BudgetScreen({super.key});
@@ -425,6 +426,7 @@ class BudgetScreen extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
+        onTap: () => CashFlowDetailSheet.show(context, cashflow),
         onLongPress: () => _confirmDelete(context, ref, cashflow.id),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -481,6 +483,21 @@ class BudgetScreen extends ConsumerWidget {
                             : AppColors.lightTextSecondary,
                       ),
                     ),
+                    if (cashflow.note != null && cashflow.note!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        cashflow.note!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

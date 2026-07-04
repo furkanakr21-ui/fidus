@@ -9,6 +9,7 @@ import '../../shared/models/income_expense_model.dart';
 import '../../shared/models/goal_model.dart';
 import '../../shared/providers.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../budget/cashflow_detail_sheet.dart';
 import '../funds/tefas_browser_screen.dart';
 
 const _budgetTabIndex = 2;
@@ -1207,73 +1208,80 @@ class DashboardScreen extends ConsumerWidget {
                     final isLast = i == cashflows.length - 1;
                     return Column(
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 38,
-                                height: 38,
-                                decoration: isDeposit
-                                    ? BoxDecoration(
-                                        color: color.withValues(alpha: 0.1),
-                                        shape: BoxShape.circle,
-                                      )
-                                    : BoxDecoration(
-                                        color: color.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                child: Icon(
-                                  isDeposit
-                                      ? Icons.arrow_downward_rounded
-                                      : Icons.arrow_upward_rounded,
-                                  color: color,
-                                  size: 17,
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => CashFlowDetailSheet.show(context, c),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: isDeposit
+                                      ? BoxDecoration(
+                                          color: color.withValues(alpha: 0.1),
+                                          shape: BoxShape.circle,
+                                        )
+                                      : BoxDecoration(
+                                          color: color.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                  child: Icon(
+                                    isDeposit
+                                        ? Icons.arrow_downward_rounded
+                                        : Icons.arrow_upward_rounded,
+                                    color: color,
+                                    size: 17,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      c.title,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
-                                        color: isDark
-                                            ? AppColors.darkText
-                                            : AppColors.lightText,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        c.title,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                          color: isDark
+                                              ? AppColors.darkText
+                                              : AppColors.lightText,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${c.date.day}.${c.date.month}.${c.date.year}'
-                                      '${c.currency != 'TRY' ? ' · ${c.currency}' : ''}',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: isDark
-                                            ? AppColors.darkTextSecondary
-                                            : AppColors.lightTextSecondary,
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${c.date.day}.${c.date.month}.${c.date.year}'
+                                        '${c.currency != 'TRY' ? ' · ${c.currency}' : ''}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark
+                                              ? AppColors.darkTextSecondary
+                                              : AppColors.lightTextSecondary,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                '${isDeposit ? '+' : '-'}${CurrencyUtils.formatCashFlow(c.amount, c.currency)}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: color,
-                                  fontSize: 14,
+                                Text(
+                                  '${isDeposit ? '+' : '-'}${CurrencyUtils.formatCashFlow(c.amount, c.currency)}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: color,
+                                    fontSize: 14,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                         if (!isLast)
