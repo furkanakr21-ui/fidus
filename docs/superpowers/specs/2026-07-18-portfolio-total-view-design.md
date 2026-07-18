@@ -1,7 +1,7 @@
 # "Portföyler Toplamı" Görünümü — Tasarım Dokümanı
 
 - **Tarih:** 2026-07-18
-- **Durum:** Kullanıcı incelemesinde
+- **Durum:** Onaylandı; Faz 0 ve Faz 1 tamamlandı
 - **Kapsadığı sürüm:** Fidus 1.0.0 (main dalı, temiz analiz + 66/66 test)
 
 ---
@@ -19,6 +19,8 @@ Kullanıcının aktif portföy seçim listesine **"Portföyler Toplamı"** adın
 | Dahil/hariç ayarının yeri | **Toplam satırındaki ayar ikonu → alttan açılan sayfa** (anahtar listesi) |
 | Mimari | **Sanal portföy kimliği (sentinel)** — veri katmanında dallanma, ekranlar değişmez |
 | Durum saklama | **Sunucuda** (`user_settings` + `portfolios`), cihazlar arası senkron |
+| Dahil portföy yokken seçim | **Toplam görünüm açılmaz**; kısa uyarı ve "Portföyleri Seç" yönlendirmesi gösterilir |
+| Snapshot bütünlüğü | **Eksik toplam gösterilmez**; beklenen snapshot eksikse hazırlanıyor durumu kullanılır |
 
 ## 3. Kavramsal model
 
@@ -42,6 +44,7 @@ alter table public.user_settings
 - **RLS/grant:** Mevcut `own_portfolios` ve `own_settings` politikaları (FOR ALL) ile `setup_data_api_grants.sql`'deki authenticated yazma izinleri bu kolonları zaten kapsar. Yeni politika/grant gerekmez.
 - **Realtime:** `portfolios` tablosu publication'a **eklenmez** (bugün de portföy listesi realtime değil; YAGNI). Diğer tabloların mevcut publication'ı yeterli — toplam modda kanallar `user_id` filtresiyle kurulur, bu sadece istemci değişikliğidir.
 - **Snapshot fonksiyonu (`record_portfolio_value_snapshots`):** değişmez.
+- **Geri dönüş:** `supabase/rollback_total_view.sql` yalnızca bu iki yeni kolonu kaldırır; mevcut finansal tablolara ve kayıtlara dokunmaz.
 
 ## 5. Veri katmanı (Flutter)
 
@@ -57,11 +60,13 @@ alter table public.user_settings
 - `TransactionService.getByPortfolios(ids)`: varlık kimlikleri `assets.portfolio_id in ids` ile bulunur, işlemler `asset_id in (...)` ile çekilir.
 - `PortfolioSnapshotService`: `getTodayForPortfolios(ids)`, `getHistoryForPortfolios(ids)`.
 - `PortfolioAssetSnapshotService`: `getTodayForPortfolios(ids)`.
+- Geçmiş sorguları PostgREST'in 1000 satır sınırında kesilmemesi için sayfalandırılır. Boş portföy listesinde sorgu gönderilmez.
 
 ### 5.2 Provider'lar (`lib/shared/providers.dart`)
 
 - `includedPortfolioIdsProvider = Provider<List<String>>` → `portfoliosProvider`'dan `includeInTotal == true` olanların kimlikleri.
 - `isTotalViewProvider = Provider<bool>` → `activePortfolioProvider == kTotalPortfolioId`.
+- `portfolioScopeProvider` gerçek veya toplam görünüm kapsamını tek ve kararlı bir değer olarak sunar; eski kapsamın geciken sorgusu yeni state'i ezemez.
 - `ActivePortfolioNotifier`:
   - `_loadFromServer`: ayarlarda `total_view_active == true` ise state = sentinel; değilse mevcut mantık.
   - `switchPortfolio(id)`: id sentinel ise `setTotalViewActive()`, değilse `setActivePortfolio(id)`; state güncellenir.
@@ -80,7 +85,7 @@ Yeni dosya `lib/shared/models/total_view_aggregation.dart`:
 - `List<PortfolioValueSnapshot> aggregateSnapshotHistory(List<PortfolioValueSnapshot> rows)` — `snapshot_date` bazında gruplanıp toplanır, tarihe göre sıralı döner.
 - `Map<String, PortfolioAssetValueSnapshot> aggregateAssetSnapshotsBySymbol(List<PortfolioAssetValueSnapshot> rows)` — sembol bazında `quantity`, `value_try`, `value_usd`, `asset_row_count` toplanır; ad/tip alanları ilk satırdan.
 
-**Kısmi snapshot kuralı:** Dahil bir portföyün o güne snapshot'ı yoksa var olan satırlar yine toplanır. Bu, tek portföyde gün içinde varlık eklendiğindeki mevcut davranışla ("Yeni" rozeti, baz dışı artış) aynıdır ve bilinçli tercihtir.
+**Snapshot bütünlük kuralı:** Bir tarihte oluşturulmuş ve dahil edilmiş bir portföy için beklenen snapshot yoksa var olan satırlar sessizce toplanıp eksik toplam gösterilmez. Bugünkü değişim "veri hazırlanıyor" durumunda kalır; geçmişte doğrulanmış eksik gün yanıltıcı grafik noktası olarak çizilmez. İlgili tarihte henüz oluşturulmamış portföy eksik kabul edilmez. Gün içinde eklenen ve henüz varlık snapshot'ı olmayan varlık mevcut davranıştaki gibi "Yeni" sayılır.
 
 ## 6. Yazma akışları
 
@@ -96,7 +101,9 @@ Yeni dosya `lib/shared/models/total_view_aggregation.dart`:
 - **Ayarlar → Portföyler bölümü:** listenin en üstüne `Portföyler Toplamı` satırı:
   - Sol: özel ikon (`Icons.donut_large_rounded`), başlık, alt yazı "N portföy dahil".
   - Sağ: aktifse onay işareti, değilse "Seç" butonu; ayrıca her durumda **ayar (tune) ikonu**.
-  - Ayar ikonu → `TotalViewSettingsSheet`: tüm portföyler `Switch` ile listelenir, değişiklik anında sunucuya yazılır. Tüm portföyler hariç bırakılabilir; bu durumda sheet içinde "Hiçbir portföy dahil değil — toplam görünüm boş görünür" bilgi notu belirir (engel yok).
+  - Ayar ikonu → `TotalViewSettingsSheet`: tüm portföyler `Switch` ile listelenir, değişiklik anında sunucuya yazılır.
+  - Tüm portföyler hariç bırakılabilir; fakat bu durumda toplam görünüm seçilemez. Kullanıcı seçim yapmaya çalışırsa "Toplama dahil portföy yok" başlıklı kısa uyarı gösterilir. "Portföyleri Seç" eylemi doğrudan ayar sayfasını açar.
+  - Toplam görünüm açıkken son dahil portföy kaldırılırsa görünüm güvenli şekilde son gerçek aktif portföye döner ve kullanıcı kısa bir bildirimle bilgilendirilir.
 - **Aktif portföy hero kartı (Ayarlar):** toplam aktifken ad "Portföyler Toplamı", rozet "N portföy dahil".
 - **Anasayfa ve Portföy sekmesi:** toplam aktifken başlığın hemen altında ince rozet: "Toplam görünüm · N portföy". Başka görsel değişiklik yok.
 - **Silme koruması:** `user_settings.active_portfolio_id`'nin işaret ettiği portföy silindiğinde mevcut davranış korunur; toplam görünüm aktifse seçim etkilenmez.
@@ -105,7 +112,8 @@ Yeni dosya `lib/shared/models/total_view_aggregation.dart`:
 
 | Durum | Davranış |
 |---|---|
-| Dahil liste boş | Tüm sekmeler mevcut boş durumlarını gösterir; açılış kapısı takılmaz (markReady garantisi) |
+| Dahil liste boşken toplam seçilir | Görünüm açılmaz; kısa uyarı ve "Portföyleri Seç" eylemi gösterilir |
+| Toplam açıkken son dahil portföy kaldırılır | Toplam kapanır, son gerçek aktif portföye güvenli dönüş yapılır |
 | Toplam aktifken dahil anahtarı değişir | Provider'lar `includedPortfolioIdsProvider`'ı izlediği için anında yeniden yükleme |
 | Toplam aktifken başka cihazdan varlık eklenir | `user_id` filtreli Realtime kanalı yakalar, liste canlı güncellenir |
 | Hesap aktarma (sync kodu) | Ayarlar sunucudan okunduğu için toplam/dahil durumu yeni hesapla birlikte gelir; mevcut `ref.invalidate` akışı yeterli |
@@ -115,7 +123,7 @@ Yeni dosya `lib/shared/models/total_view_aggregation.dart`:
 ## 9. Test stratejisi
 
 **Yeni birim testleri** (`test/` altında):
-- `total_view_aggregation_test.dart`: bugün toplamı (2-3 portföy, USD değerleri, boş liste → null); geçmiş serisi (eksik günlü portföy, tarih sıralaması, tek portföy = kimlik dönüşümü); sembol birleştirme (çakışan sembol, farklı semboller, quantity/value toplamları).
+- `total_view_aggregation_test.dart`: bugün toplamı (2-3 portföy, statik USD değerleri, boş liste → null); eksik snapshotta toplam üretmeme; portföy oluşturulmadan önceki tarih; geçmiş sıralaması; sembol birleştirme ve quantity/value toplamları.
 - `included_portfolios_test.dart`: dahil-liste türetme; `setIncludeInTotal` sonrası state; tümü hariçken boş liste.
 - `active_portfolio_total_test.dart`: sentinel'e geçiş/çıkış, ayar okuma (`total_view_active`) dönüşümleri.
 
@@ -124,6 +132,8 @@ Yeni dosya `lib/shared/models/total_view_aggregation.dart`:
 - `target_portfolio_field_test.dart`: toplam modda ekleme formlarında alanın görünmesi/zorunluluğu, normal modda hiç render edilmemesi.
 - `sell_portfolio_selection_test.dart`: çok portföylü sembolde satış öncesi portföy seçim adımı; tek portföyde adımın atlanması.
 - `total_view_badge_test.dart`: Anasayfa/Portföy rozetlerinin yalnızca toplam modda görünmesi.
+- `total_view_empty_selection_test.dart`: dahil liste boşken toplamın açılmaması, uyarı metni ve "Portföyleri Seç" yönlendirmesi; son dahil portföy kaldırılınca güvenli geri dönüş.
+- Servis testleri: 1000 satırı aşan snapshot geçmişinin sayfalanması, boş listede sorgu atılmaması ve eski kapsam sorgusunun yeni state'i ezmemesi.
 
 **Regresyon:** mevcut 66 test değişiklik sonrası geçmeli; `flutter analyze` sıfır sorun. Snapshot ve fiyat akışına dokunulmadığı için sunucu tarafında regresyon riski yok; migration idempotent ve geri alınabilir (`drop column` ile).
 
