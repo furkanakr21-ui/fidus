@@ -908,38 +908,47 @@ class DashboardScreen extends ConsumerWidget {
                 color: isDark ? AppColors.darkText : AppColors.lightText,
               ),
             ),
-            subtitle: Row(
+            subtitle: Wrap(
+              spacing: 6,
+              runSpacing: 1,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   '${assets.length} varlık',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  width: 3,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '%${catPct.toStringAsFixed(1)}',
                   maxLines: 1,
                   softWrap: false,
                   style: TextStyle(
                     fontSize: 11,
-                    color: cat.color,
-                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
                   ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 3,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '%${catPct.toStringAsFixed(1)}',
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: categoryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

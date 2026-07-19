@@ -578,6 +578,13 @@ class AssetDetailScreen extends ConsumerWidget {
           .map((holding) => holding.portfolio)
           .toList(growable: false),
       title: title,
+      description:
+          'Satışın yapılacağı portföyü seçin. Kullanılabilir miktarı kontrol edin.',
+      detailsByPortfolioId: {
+        for (final holding in holdings)
+          holding.portfolio.id:
+              '${_formatQty(holding.quantity)} adet kullanılabilir',
+      },
     );
     if (portfolio == null) return null;
     return holdings.firstWhere(

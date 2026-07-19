@@ -149,41 +149,63 @@ class PositionSheet extends ConsumerWidget {
             // Değer + K/Z satırı
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    CurrencyUtils.format(current.currentValue, displayCurrency),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 26,
-                      letterSpacing: -1,
-                      color: isDark ? AppColors.darkText : AppColors.lightText,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+              child: LayoutBuilder(
+                builder: (context, constraints) => Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  children: [
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: constraints.maxWidth,
                       ),
-                      decoration: BoxDecoration(
-                        color: plColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${isProfit ? '+' : ''}${CurrencyUtils.format(current.profitLoss, displayCurrency)} (${current.profitLossPercent.toStringAsFixed(2)}%)',
-                        style: TextStyle(
-                          color: plColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          CurrencyUtils.format(
+                            current.currentValue,
+                            displayCurrency,
+                          ),
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 26,
+                            letterSpacing: -1,
+                            color: isDark
+                                ? AppColors.darkText
+                                : AppColors.lightText,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: constraints.maxWidth,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: plColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${isProfit ? '+' : ''}${CurrencyUtils.format(current.profitLoss, displayCurrency)} (${current.profitLossPercent.toStringAsFixed(2)}%)',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: plColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 14),
@@ -229,24 +251,50 @@ class PositionSheet extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.receipt_long_outlined,
-                      size: 14,
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.lightTextSecondary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isTotalView
-                          ? '${lots.length} alım lotu · ${holdings.length} portföy · Portföy payı %${portfolioWeight.toStringAsFixed(1)}'
-                          : '${lots.length} ayrı alım lotu · Portföy payı %${portfolioWeight.toStringAsFixed(1)}',
-                      style: TextStyle(
-                        fontSize: 12,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Icon(
+                        Icons.receipt_long_outlined,
+                        size: 14,
                         color: isDark
                             ? AppColors.darkTextSecondary
                             : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isTotalView
+                                ? '${lots.length} alım lotu · ${holdings.length} portföy'
+                                : '${lots.length} ayrı alım lotu',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${isTotalView ? 'Toplam' : 'Portföy'} içindeki payı %${portfolioWeight.toStringAsFixed(1)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -581,6 +629,13 @@ class PositionSheet extends ConsumerWidget {
           .map((holding) => holding.portfolio)
           .toList(growable: false),
       title: title,
+      description:
+          'Satışın yapılacağı portföyü seçin. Kullanılabilir miktarı kontrol edin.',
+      detailsByPortfolioId: {
+        for (final holding in holdings)
+          holding.portfolio.id:
+              '${_formatQty(holding.quantity)} adet kullanılabilir',
+      },
     );
     if (portfolio == null) return null;
     return holdings.firstWhere(

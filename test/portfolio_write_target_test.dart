@@ -11,12 +11,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-PortfolioModel _portfolio(String id, String name) {
+PortfolioModel _portfolio(
+  String id,
+  String name, {
+  bool includeInTotal = true,
+}) {
   return PortfolioModel(
     id: id,
     userId: 'user-1',
     name: name,
     emoji: 'P',
+    includeInTotal: includeInTotal,
     createdAt: DateTime.utc(2026, 1, 1),
   );
 }
@@ -247,6 +252,45 @@ void main() {
     await tester.tap(find.text('Uzun Vade'));
     await tester.pumpAndSettle();
 
+    expect(selected, 'portfolio-2');
+  });
+
+  testWidgets('excluded target is labelled and requires confirmation', (
+    tester,
+  ) async {
+    final portfolios = [
+      _portfolio('portfolio-1', 'Ana'),
+      _portfolio('portfolio-2', 'Toplam Dışı', includeInTotal: false),
+    ];
+    String? selected;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TargetPortfolioField(
+            portfolios: portfolios,
+            selectedPortfolioId: null,
+            onChanged: (id) => selected = id,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('target_portfolio_field')));
+    await tester.pumpAndSettle();
+    expect(find.text('Toplama dahil değil'), findsOneWidget);
+
+    await tester.tap(find.text('Toplam Dışı'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Toplam Dışı toplam görünümün dışında. Bu portföye kaydedilen işlem Portföyler Toplamı içinde görünmez.',
+      ),
+      findsOneWidget,
+    );
+    expect(selected, isNull);
+
+    await tester.tap(find.byKey(const ValueKey('confirm_excluded_portfolio')));
+    await tester.pumpAndSettle();
     expect(selected, 'portfolio-2');
   });
 
