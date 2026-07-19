@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/constants/asset_list.dart';
 import '../../shared/models/asset_model.dart';
+import '../../shared/models/portfolio_write_target.dart';
 import '../../shared/models/tefas_fund_model.dart';
 import '../../shared/providers.dart';
 import '../../shared/models/transaction_model.dart';
@@ -12,6 +13,7 @@ import '../../shared/services/supabase_service.dart';
 import '../../shared/services/tefas_service.dart';
 import '../../shared/services/asset_service.dart';
 import '../../shared/services/transaction_service.dart';
+import '../../shared/widgets/portfolio_picker.dart';
 import 'fund_detail_sheet.dart';
 
 class AddAssetScreen extends ConsumerStatefulWidget {
@@ -39,6 +41,8 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
   List<SearchResult> _searchResults = [];
   bool _isSearching = false;
   bool _isCustom = false;
+  bool _isSaving = false;
+  String? _targetPortfolioId;
 
   // Döviz — DB'den dinamik yüklenmiş liste
   List<AssetInfo> _dynamicCurrencies = [];
@@ -480,16 +484,27 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isTotalView = ref.watch(isTotalViewProvider);
+    final portfolios = ref.watch(portfoliosProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Varlık Ekle'),
         actions: [
           TextButton(
-            onPressed: _save,
-            child: Text(
-              'Kaydet',
-              style: TextStyle(color: _typeColor, fontWeight: FontWeight.w700),
-            ),
+            onPressed: _isSaving ? null : _save,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    'Kaydet',
+                    style: TextStyle(
+                      color: _typeColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
           ),
         ],
         bottom: TabBar(
@@ -506,6 +521,14 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (isTotalView) ...[
+              TargetPortfolioField(
+                portfolios: portfolios,
+                selectedPortfolioId: _targetPortfolioId,
+                onChanged: (id) => setState(() => _targetPortfolioId = id),
+              ),
+              const SizedBox(height: 16),
+            ],
             // Hisse/kripto arama
             if (_hasSearch) ...[
               _buildSearchField(context),
@@ -1654,7 +1677,19 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
     final apiId = isManual ? null : _selectedAsset!.apiId;
     final currency = isManual ? 'TRY' : _selectedAsset!.currency;
     final type = isManual ? _currentType : _selectedAsset!.type;
-    final portfolioId = ref.read(activePortfolioProvider);
+    final portfolioId = resolveWritePortfolioId(
+      activePortfolioId: ref.read(activePortfolioProvider),
+      selectedPortfolioId: _targetPortfolioId,
+    );
+    if (portfolioId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('İşlemin kaydedileceği portföyü seçin'),
+          backgroundColor: AppColors.loss,
+        ),
+      );
+      return;
+    }
 
     final buyPrice = _isCashTab
         ? 1.0
@@ -1681,29 +1716,52 @@ class _AddAssetScreenState extends ConsumerState<AddAssetScreen>
       currency: currency,
     );
 
-    final saved = await AssetService.save(asset);
+    setState(() => _isSaving = true);
+    AssetModel? savedAsset;
+    var transactionSaved = false;
+    try {
+      final saved = await AssetService.save(asset);
+      savedAsset = saved;
 
-    // Alış işlemini geçmişe kaydet
-    final buyTx = TransactionModel(
-      id: '',
-      assetId: saved.id,
-      type: TransactionType.buy,
-      quantity: saved.quantity,
-      price: saved.buyPrice,
-      commission: saved.commission,
-      date: saved.buyDate,
-      note: saved.note,
-      symbol: saved.symbol,
-      assetName: saved.name,
-    );
-    await TransactionService.save(buyTx);
-    if (!mounted) return;
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Varlık eklendi!'),
-        backgroundColor: AppColors.profit,
-      ),
-    );
+      // Alış işlemini geçmişe kaydet
+      final buyTx = TransactionModel(
+        id: '',
+        assetId: saved.id,
+        type: TransactionType.buy,
+        quantity: saved.quantity,
+        price: saved.buyPrice,
+        commission: saved.commission,
+        date: saved.buyDate,
+        note: saved.note,
+        symbol: saved.symbol,
+        assetName: saved.name,
+      );
+      await TransactionService.save(buyTx);
+      transactionSaved = true;
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Varlık eklendi!'),
+          backgroundColor: AppColors.profit,
+        ),
+      );
+    } catch (_) {
+      if (savedAsset != null && !transactionSaved) {
+        try {
+          await AssetService.delete(savedAsset.id);
+        } catch (_) {}
+      }
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Varlık ekleme tamamlanamadı. Portföyü yenileyip kontrol edin',
+          ),
+          backgroundColor: AppColors.loss,
+        ),
+      );
+    }
   }
 }

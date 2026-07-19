@@ -1,8 +1,8 @@
 # "Portföyler Toplamı" Görünümü — Tasarım Dokümanı
 
 - **Tarih:** 2026-07-18
-- **Durum:** Onaylandı; Faz 0 ve Faz 1 tamamlandı
-- **Kapsadığı sürüm:** Fidus 1.0.0 (main dalı, temiz analiz + 66/66 test)
+- **Durum:** Onaylandı; Faz 0–10 tamamlandı
+- **Kapsadığı sürüm:** Fidus 1.0.0 (main dalı, temiz analiz + 118/118 test)
 
 ---
 
@@ -44,7 +44,8 @@ alter table public.user_settings
 - **RLS/grant:** Mevcut `own_portfolios` ve `own_settings` politikaları (FOR ALL) ile `setup_data_api_grants.sql`'deki authenticated yazma izinleri bu kolonları zaten kapsar. Yeni politika/grant gerekmez.
 - **Realtime:** `portfolios` tablosu publication'a **eklenmez** (bugün de portföy listesi realtime değil; YAGNI). Diğer tabloların mevcut publication'ı yeterli — toplam modda kanallar `user_id` filtresiyle kurulur, bu sadece istemci değişikliğidir.
 - **Snapshot fonksiyonu (`record_portfolio_value_snapshots`):** değişmez.
-- **Geri dönüş:** `supabase/rollback_total_view.sql` yalnızca bu iki yeni kolonu kaldırır; mevcut finansal tablolara ve kayıtlara dokunmaz.
+- **Sorgu indeksleri:** toplam görünüm sorgularının kullanıcı/veri büyüdükçe tam tablo taramasına dönüşmemesi için `assets`, `cashflows`, `goals` ve `transactions` tablolarına yalnız ilgili filtre/sıralama kolonlarını kapsayan idempotent indeksler eklenir.
+- **Geri dönüş:** `supabase/rollback_total_view.sql` bu iki yeni kolonu ve yalnız toplam görünüm için eklenen dört sorgu indeksini kaldırır; mevcut finansal tablolardaki satırlara dokunmaz.
 
 ## 5. Veri katmanı (Flutter)
 
@@ -143,3 +144,11 @@ Yeni dosya `lib/shared/models/total_view_aggregation.dart`:
 - Gerçekleşen kâr/zarar hesabı.
 - Sunucu tarafında toplam snapshot üretimi (istemci toplaması yeterli ve daha esnek).
 - `portfolios` tablosunun Realtime publication'a eklenmesi.
+
+## 11. Faz 10 nihai kabul
+
+- Faz 0 geri dönüş dalı, etiketi ve dış veri yedeklerinin SHA-256 bütünlüğü doğrulandı.
+- Canlı Supabase şeması migration sözleşmesiyle karşılaştırıldı: kolonlar, varsayılanlar, indeksler, RLS ve politikalar uyumlu.
+- Sentinel değerinin sunucuya gerçek portföy kimliği olarak yazılmadığı ve toplam görünümdeki tüm yazma yollarının gerçek bir hedef portföy gerektirdiği denetlendi.
+- `flutter analyze` sıfır sorunla, tam test paketi 118/118 başarıyla tamamlandı.
+- Android release App Bundle ve kod imzasız iOS release cihaz derlemesi başarıyla üretildi.

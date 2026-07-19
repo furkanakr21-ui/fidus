@@ -9,6 +9,7 @@ import '../../shared/models/income_expense_model.dart';
 import '../../shared/models/goal_model.dart';
 import '../../shared/providers.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../../shared/widgets/total_view_badge.dart';
 import '../budget/cashflow_detail_sheet.dart';
 import '../funds/tefas_browser_screen.dart';
 
@@ -163,84 +164,90 @@ class DashboardScreen extends ConsumerWidget {
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                greeting,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    greeting,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: textSecondary,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    'Fidus',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? AppColors.darkText : AppColors.lightText,
+                      letterSpacing: -1.2,
+                      height: 1.1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Para birimi chip
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: isDark ? 0.12 : 0.09),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: accent.withValues(alpha: 0.2)),
+              ),
+              child: Text(
+                displayCurrency,
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: textSecondary,
-                  letterSpacing: 0.2,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
                 ),
               ),
-              const SizedBox(height: 1),
+            ),
+            const SizedBox(width: 6),
+            if (updateStr != null)
               Text(
-                'Fidus',
+                updateStr,
                 style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? AppColors.darkText : AppColors.lightText,
-                  letterSpacing: -1.2,
-                  height: 1.1,
+                  fontSize: 10,
+                  color: isStale ? AppColors.gold : textSecondary,
                 ),
               ),
-            ],
-          ),
-        ),
-        // Para birimi chip
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: accent.withValues(alpha: isDark ? 0.12 : 0.09),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: accent.withValues(alpha: 0.2)),
-          ),
-          child: Text(
-            displayCurrency,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: accent,
+            SizedBox(
+              width: 38,
+              height: 38,
+              child: isLoading
+                  ? Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: accent,
+                      ),
+                    )
+                  : IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: Icon(
+                        Icons.refresh_rounded,
+                        size: 20,
+                        color: textSecondary,
+                      ),
+                      onPressed: () =>
+                          ref.read(priceUpdateProvider.notifier).updatePrices(),
+                    ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(width: 6),
-        if (updateStr != null)
-          Text(
-            updateStr,
-            style: TextStyle(
-              fontSize: 10,
-              color: isStale ? AppColors.gold : textSecondary,
-            ),
-          ),
-        SizedBox(
-          width: 38,
-          height: 38,
-          child: isLoading
-              ? Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: accent,
-                  ),
-                )
-              : IconButton(
-                  padding: EdgeInsets.zero,
-                  icon: Icon(
-                    Icons.refresh_rounded,
-                    size: 20,
-                    color: textSecondary,
-                  ),
-                  onPressed: () =>
-                      ref.read(priceUpdateProvider.notifier).updatePrices(),
-                ),
-        ),
+        const TotalViewBadge(),
       ],
     );
   }
@@ -1160,20 +1167,27 @@ class DashboardScreen extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Son Nakit Akışları',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: isDark ? AppColors.darkText : AppColors.lightText,
-                letterSpacing: -0.5,
+            Expanded(
+              child: Text(
+                'Son Nakit Akışları',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
+                  letterSpacing: -0.5,
+                ),
               ),
             ),
+            const SizedBox(width: 10),
             GestureDetector(
               onTap: () =>
                   ref.read(tabIndexProvider.notifier).setTab(_budgetTabIndex),
               child: Text(
                 'Tümünü gör →',
+                maxLines: 1,
+                softWrap: false,
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.accentFor(Theme.of(context).brightness),

@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/income_expense_model.dart';
+import '../../shared/models/portfolio_write_target.dart';
 import '../../shared/providers.dart';
 import '../../shared/services/cashflow_service.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../../shared/widgets/portfolio_picker.dart';
 
 class AddCashFlowScreen extends ConsumerStatefulWidget {
   final bool isDeposit;
@@ -23,6 +25,8 @@ class _AddCashFlowScreenState extends ConsumerState<AddCashFlowScreen> {
   String _currency = 'TRY';
   double? _rateAtEntry; // işlem anında sabitlenecek kur (TRY dışı için)
   DateTime _selectedDate = DateTime.now();
+  String? _targetPortfolioId;
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -38,12 +42,14 @@ class _AddCashFlowScreenState extends ConsumerState<AddCashFlowScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isTotalView = ref.watch(isTotalViewProvider);
+    final portfolios = ref.watch(portfoliosProvider);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isDeposit ? 'Para Girişi' : 'Para Çıkışı'),
         actions: [
           TextButton(
-            onPressed: _save,
+            onPressed: _isSaving ? null : _save,
             child: Text(
               'Kaydet',
               style: TextStyle(color: _color, fontWeight: FontWeight.w700),
@@ -106,6 +112,14 @@ class _AddCashFlowScreenState extends ConsumerState<AddCashFlowScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+              if (isTotalView) ...[
+                TargetPortfolioField(
+                  portfolios: portfolios,
+                  selectedPortfolioId: _targetPortfolioId,
+                  onChanged: (id) => setState(() => _targetPortfolioId = id),
+                ),
+                const SizedBox(height: 20),
+              ],
               Text(
                 'İşlem Bilgileri',
                 style: Theme.of(
@@ -350,21 +364,37 @@ class _AddCashFlowScreenState extends ConsumerState<AddCashFlowScreen> {
     );
   }
 
-  void _save() {
-    if (_formKey.currentState!.validate()) {
-      final portfolioId = ref.read(activePortfolioProvider);
-      final cashflow = CashFlowModel(
-        id: '',
-        portfolioId: portfolioId,
-        title: _titleController.text,
-        amount: double.parse(_amountController.text.replaceAll(',', '.')),
-        currency: _currency,
-        type: widget.isDeposit ? CashFlowType.deposit : CashFlowType.withdrawal,
-        date: _selectedDate,
-        note: _noteController.text.isEmpty ? null : _noteController.text,
-        rateAtEntry: _rateAtEntry,
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    final portfolioId = resolveWritePortfolioId(
+      activePortfolioId: ref.read(activePortfolioProvider),
+      selectedPortfolioId: _targetPortfolioId,
+    );
+    if (portfolioId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('İşlemin kaydedileceği portföyü seçin'),
+          backgroundColor: AppColors.loss,
+        ),
       );
-      CashFlowService.save(cashflow);
+      return;
+    }
+
+    final cashflow = CashFlowModel(
+      id: '',
+      portfolioId: portfolioId,
+      title: _titleController.text,
+      amount: double.parse(_amountController.text.replaceAll(',', '.')),
+      currency: _currency,
+      type: widget.isDeposit ? CashFlowType.deposit : CashFlowType.withdrawal,
+      date: _selectedDate,
+      note: _noteController.text.isEmpty ? null : _noteController.text,
+      rateAtEntry: _rateAtEntry,
+    );
+    setState(() => _isSaving = true);
+    try {
+      await CashFlowService.save(cashflow);
+      if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -372,6 +402,15 @@ class _AddCashFlowScreenState extends ConsumerState<AddCashFlowScreen> {
             widget.isDeposit ? 'Para girişi eklendi!' : 'Para çıkışı eklendi!',
           ),
           backgroundColor: _color,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('İşlem kaydedilemedi, lütfen tekrar deneyin'),
+          backgroundColor: AppColors.loss,
         ),
       );
     }

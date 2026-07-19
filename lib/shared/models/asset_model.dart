@@ -1,12 +1,4 @@
-enum AssetType {
-  stock,
-  crypto,
-  currency,
-  commodity,
-  fund,
-  cash,
-  realEstate,
-}
+enum AssetType { stock, crypto, currency, commodity, fund, cash, realEstate }
 
 class AssetModel {
   final String id;
@@ -18,6 +10,7 @@ class AssetModel {
   final double buyPrice;
   final double? currentPrice;
   final DateTime buyDate;
+  final DateTime? createdAt;
   final String? platform;
   final double? commission;
   final String? note;
@@ -36,6 +29,7 @@ class AssetModel {
     required this.buyPrice,
     this.currentPrice,
     required this.buyDate,
+    this.createdAt,
     this.platform,
     this.commission,
     this.note,
@@ -95,6 +89,7 @@ class AssetModel {
       buyPrice: buyPrice ?? this.buyPrice,
       currentPrice: currentPrice ?? this.currentPrice,
       buyDate: buyDate,
+      createdAt: createdAt,
       platform: platform,
       commission: commission ?? this.commission,
       note: note,
@@ -122,6 +117,9 @@ class AssetModel {
       quantity: (json['quantity'] as num).toDouble(),
       buyPrice: (json['buy_price'] as num).toDouble(),
       buyDate: DateTime.parse(json['buy_date'] as String),
+      createdAt: json['created_at'] == null
+          ? null
+          : DateTime.parse(json['created_at'] as String),
       platform: json['platform'] as String?,
       commission: (json['commission'] as num?)?.toDouble(),
       note: json['note'] as String?,
@@ -132,19 +130,19 @@ class AssetModel {
   }
 
   Map<String, dynamic> toInsertJson(String userId) => {
-        'portfolio_id': portfolioId,
-        'user_id': userId,
-        'name': name,
-        'symbol': symbol,
-        'type': type.name,
-        'quantity': quantity,
-        'buy_price': buyPrice,
-        'buy_date': buyDate.toIso8601String().split('T').first,
-        'platform': platform,
-        'commission': commission ?? 0,
-        'note': note,
-        'currency': currency,
-        'api_source': apiSource,
-        'api_id': apiId,
-      };
+    'portfolio_id': portfolioId,
+    'user_id': userId,
+    'name': name,
+    'symbol': symbol,
+    'type': type.name,
+    'quantity': quantity,
+    'buy_price': buyPrice,
+    'buy_date': buyDate.toIso8601String().split('T').first,
+    'platform': platform,
+    'commission': commission ?? 0,
+    'note': note,
+    'currency': currency,
+    'api_source': apiSource,
+    'api_id': apiId,
+  };
 }

@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/asset_model.dart';
+import '../../shared/models/portfolio_write_target.dart';
 import '../../shared/models/transaction_model.dart';
 import '../../shared/providers.dart';
 import '../../shared/services/asset_service.dart';
 import '../../shared/services/transaction_service.dart';
+import '../../shared/widgets/portfolio_picker.dart';
 
 class AddBuySheet extends ConsumerStatefulWidget {
   final AssetModel mergedAsset;
@@ -24,6 +26,7 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
   final _noteController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   bool _isSaving = false;
+  String? _targetPortfolioId;
 
   @override
   void dispose() {
@@ -66,12 +69,31 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
       return;
     }
 
+    final holdings = portfolioHoldingsForSymbol(
+      assets: ref.read(assetsProvider),
+      portfolios: ref.read(portfoliosProvider),
+      symbol: widget.mergedAsset.symbol,
+    );
+    final portfolioId = resolveSymbolWritePortfolioId(
+      activePortfolioId: ref.read(isTotalViewProvider)
+          ? ref.read(activePortfolioProvider)
+          : widget.mergedAsset.portfolioId,
+      holdings: holdings,
+      selectedPortfolioId: _targetPortfolioId,
+    );
+    if (portfolioId == null) {
+      _showError('Alışın kaydedileceği portföyü seçin');
+      return;
+    }
+
     setState(() => _isSaving = true);
 
+    AssetModel? savedLot;
+    var transactionSaved = false;
     try {
       final newLot = AssetModel(
         id: '',
-        portfolioId: widget.mergedAsset.portfolioId,
+        portfolioId: portfolioId,
         name: widget.mergedAsset.name,
         symbol: widget.mergedAsset.symbol,
         type: widget.mergedAsset.type,
@@ -86,6 +108,7 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
       );
 
       final saved = await AssetService.save(newLot);
+      savedLot = saved;
 
       final buyTx = TransactionModel(
         id: '',
@@ -100,6 +123,7 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
         assetName: widget.mergedAsset.name,
       );
       await TransactionService.save(buyTx);
+      transactionSaved = true;
 
       ref.read(assetsProvider.notifier).load();
       ref.read(transactionsProvider.notifier).load();
@@ -114,8 +138,14 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
         );
       }
     } catch (e) {
+      if (savedLot != null && !transactionSaved) {
+        try {
+          await AssetService.delete(savedLot.id);
+        } catch (_) {}
+      }
+      if (!mounted) return;
       setState(() => _isSaving = false);
-      _showError('Bir hata oluştu, lütfen tekrar deneyin');
+      _showError('Alış tamamlanamadı. Portföyü yenileyip kontrol edin');
     }
   }
 
@@ -130,6 +160,15 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
     final theme = Theme.of(context);
     final asset = widget.mergedAsset;
     final profitColor = AppColors.profitFor(theme.brightness);
+    final isTotalView = ref.watch(isTotalViewProvider);
+    final holdings = portfolioHoldingsForSymbol(
+      assets: ref.watch(assetsProvider),
+      portfolios: ref.watch(portfoliosProvider),
+      symbol: asset.symbol,
+    );
+    final targetPortfolios = holdings
+        .map((holding) => holding.portfolio)
+        .toList(growable: false);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -204,6 +243,15 @@ class _AddBuySheetState extends ConsumerState<AddBuySheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (isTotalView && targetPortfolios.length > 1) ...[
+                      TargetPortfolioField(
+                        portfolios: targetPortfolios,
+                        selectedPortfolioId: _targetPortfolioId,
+                        onChanged: (id) =>
+                            setState(() => _targetPortfolioId = id),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     Row(
                       children: [
                         Expanded(

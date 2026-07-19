@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/goal_model.dart';
+import '../../shared/models/portfolio_write_target.dart';
 import '../../shared/providers.dart';
 import '../../shared/services/goal_service.dart';
+import '../../shared/widgets/portfolio_picker.dart';
 
 class AddGoalSheet extends ConsumerStatefulWidget {
   const AddGoalSheet({super.key});
@@ -21,6 +23,8 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
   String _selectedEmoji = '🎯';
   String _selectedCurrency = 'TRY';
   DateTime? _targetDate;
+  String? _targetPortfolioId;
+  bool _isSaving = false;
 
   final _emojis = ['🎯', '🏠', '🚗', '✈️', '📚', '💍', '🏖️', '💰', '🏦', '🌟'];
   final _types = [
@@ -40,6 +44,8 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isTotalView = ref.watch(isTotalViewProvider);
+    final portfolios = ref.watch(portfoliosProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkCard : Colors.white;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
@@ -140,6 +146,15 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
               ],
             ),
             const SizedBox(height: 24),
+
+            if (isTotalView) ...[
+              TargetPortfolioField(
+                portfolios: portfolios,
+                selectedPortfolioId: _targetPortfolioId,
+                onChanged: (id) => setState(() => _targetPortfolioId = id),
+              ),
+              const SizedBox(height: 20),
+            ],
 
             // Emoji picker
             _sectionLabel('Emoji', textSecondary),
@@ -394,7 +409,7 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: _save,
+                onPressed: _isSaving ? null : _save,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.planning,
                   foregroundColor: Colors.white,
@@ -403,18 +418,22 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '$_selectedEmoji  Hedef Oluştur',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        '$_selectedEmoji  Hedef Oluştur',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ],
@@ -482,7 +501,7 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
     );
   }
 
-  void _save() async {
+  Future<void> _save() async {
     final title = _titleController.text.trim();
     final targetText = _targetController.text.replaceAll(',', '.');
     final targetAmount = double.tryParse(targetText);
@@ -500,7 +519,19 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
       return;
     }
 
-    final portfolioId = ref.read(activePortfolioProvider);
+    final portfolioId = resolveWritePortfolioId(
+      activePortfolioId: ref.read(activePortfolioProvider),
+      selectedPortfolioId: _targetPortfolioId,
+    );
+    if (portfolioId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Hedefin kaydedileceği portföyü seçin'),
+          backgroundColor: AppColors.loss,
+        ),
+      );
+      return;
+    }
     final goal = GoalModel(
       id: '',
       portfolioId: portfolioId,
@@ -513,8 +544,20 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
       targetDate: _targetDate,
       currency: _selectedCurrency,
     );
-    await GoalService.save(goal);
-    if (!mounted) return;
-    Navigator.pop(context);
+    setState(() => _isSaving = true);
+    try {
+      await GoalService.save(goal);
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Hedef kaydedilemedi, lütfen tekrar deneyin'),
+          backgroundColor: AppColors.loss,
+        ),
+      );
+    }
   }
 }

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/asset_model.dart';
+import '../../shared/models/portfolio_write_target.dart';
 import '../../shared/providers.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../../shared/widgets/portfolio_picker.dart';
 import 'add_buy_sheet.dart';
 import 'add_sell_sheet.dart';
 import 'asset_detail_screen.dart';
@@ -33,7 +35,14 @@ class PositionSheet extends ConsumerWidget {
             .watch(assetsProvider)
             .where((a) => a.symbol == mergedAsset.symbol)
             .toList()
-          ..sort((a, b) => a.buyDate.compareTo(b.buyDate));
+          ..sort(compareAssetLotsForFifo);
+    final portfolios = ref.watch(portfoliosProvider);
+    final isTotalView = ref.watch(isTotalViewProvider);
+    final holdings = portfolioHoldingsForSymbol(
+      assets: lots,
+      portfolios: portfolios,
+      symbol: mergedAsset.symbol,
+    );
 
     final displayCurrency = ref.watch(currencyProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -122,7 +131,7 @@ class PositionSheet extends ConsumerWidget {
                   IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 20),
                     tooltip: 'Düzenle',
-                    onPressed: () => _onEdit(context, lots),
+                    onPressed: () => _onEdit(context, ref, lots),
                   ),
                   IconButton(
                     icon: Icon(
@@ -230,7 +239,9 @@ class PositionSheet extends ConsumerWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      '${lots.length} ayrı alım lotu · Portföy payı %${portfolioWeight.toStringAsFixed(1)}',
+                      isTotalView
+                          ? '${lots.length} alım lotu · ${holdings.length} portföy · Portföy payı %${portfolioWeight.toStringAsFixed(1)}'
+                          : '${lots.length} ayrı alım lotu · Portföy payı %${portfolioWeight.toStringAsFixed(1)}',
                       style: TextStyle(
                         fontSize: 12,
                         color: isDark
@@ -274,7 +285,7 @@ class PositionSheet extends ConsumerWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: current.quantity > 0
-                          ? () => _openSell(context, current, lots)
+                          ? () => _openSell(context, ref, current, lots)
                           : null,
                       icon: const Icon(Icons.remove_rounded, size: 18),
                       label: const Text('Satış Kaydet'),
@@ -370,12 +381,24 @@ class PositionSheet extends ConsumerWidget {
     );
   }
 
-  void _openSell(
+  Future<void> _openSell(
     BuildContext context,
+    WidgetRef ref,
     AssetModel current,
     List<AssetModel> lots,
-  ) {
-    final totalQty = lots.fold(0.0, (sum, a) => sum + a.quantity);
+  ) async {
+    final holdings = portfolioHoldingsForSymbol(
+      assets: lots,
+      portfolios: ref.read(portfoliosProvider),
+      symbol: current.symbol,
+    );
+    final holding = await _selectHolding(
+      context,
+      ref,
+      holdings,
+      title: 'Satış Portföyü',
+    );
+    if (holding == null || !context.mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -383,14 +406,18 @@ class PositionSheet extends ConsumerWidget {
       builder: (_) => AddSellSheet(
         symbol: current.symbol,
         assetName: current.name,
-        totalQuantity: totalQty,
+        totalQuantity: holding.quantity,
         currentPrice: current.currentPrice,
         currency: current.currency,
+        portfolioId: holding.portfolio.id,
+        portfolioName: ref.read(isTotalViewProvider)
+            ? holding.portfolio.name
+            : null,
       ),
     );
   }
 
-  void _onEdit(BuildContext context, List<AssetModel> lots) {
+  void _onEdit(BuildContext context, WidgetRef ref, List<AssetModel> lots) {
     if (lots.isEmpty) return;
     if (lots.length == 1) {
       Navigator.pop(context);
@@ -399,12 +426,21 @@ class PositionSheet extends ConsumerWidget {
         MaterialPageRoute(builder: (_) => EditAssetScreen(asset: lots.first)),
       );
     } else {
-      _showSelectLotSheet(context, lots);
+      _showSelectLotSheet(context, ref, lots);
     }
   }
 
-  void _showSelectLotSheet(BuildContext context, List<AssetModel> lots) {
+  void _showSelectLotSheet(
+    BuildContext context,
+    WidgetRef ref,
+    List<AssetModel> lots,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isTotalView = ref.read(isTotalViewProvider);
+    final portfolioNames = {
+      for (final portfolio in ref.read(portfoliosProvider))
+        portfolio.id: portfolio.name,
+    };
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -438,7 +474,12 @@ class PositionSheet extends ConsumerWidget {
                     '${_formatQty(lot.quantity)} adet · ${lot.currency == 'USD' ? '\$' : '₺'}${lot.buyPrice.toStringAsFixed(2)}',
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  subtitle: Text(dateStr, style: const TextStyle(fontSize: 11)),
+                  subtitle: Text(
+                    isTotalView
+                        ? '$dateStr · ${portfolioNames[lot.portfolioId] ?? 'Portföy'}'
+                        : dateStr,
+                    style: const TextStyle(fontSize: 11),
+                  ),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -459,12 +500,28 @@ class PositionSheet extends ConsumerWidget {
     );
   }
 
-  void _onDelete(
+  Future<void> _onDelete(
     BuildContext context,
     WidgetRef ref,
     AssetModel current,
     List<AssetModel> lots,
-  ) {
+  ) async {
+    final isTotalView = ref.read(isTotalViewProvider);
+    final holdings = portfolioHoldingsForSymbol(
+      assets: lots,
+      portfolios: ref.read(portfoliosProvider),
+      symbol: current.symbol,
+    );
+    final holding = await _selectHolding(
+      context,
+      ref,
+      holdings,
+      title: 'Silinecek Portföy',
+    );
+    if (holding == null || !context.mounted) return;
+    final targetLots = lots
+        .where((lot) => lot.portfolioId == holding.portfolio.id)
+        .toList(growable: false);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -474,7 +531,9 @@ class PositionSheet extends ConsumerWidget {
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         content: Text(
-          '${current.symbol} için ${lots.length} alım kaydını silmek istiyor musun?',
+          isTotalView
+              ? '${holding.portfolio.name} portföyündeki ${targetLots.length} alım kaydı silinecek. Devam etmek istiyor musun?'
+              : '${current.symbol} için ${targetLots.length} alım kaydını silmek istiyor musun?',
         ),
         actions: [
           TextButton(
@@ -483,7 +542,7 @@ class PositionSheet extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () async {
-              final ids = lots.map((e) => e.id).toList();
+              final ids = targetLots.map((e) => e.id).toList();
               await ref.read(assetsProvider.notifier).deleteAll(ids);
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
@@ -503,6 +562,29 @@ class PositionSheet extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Future<PortfolioHolding?> _selectHolding(
+    BuildContext context,
+    WidgetRef ref,
+    List<PortfolioHolding> holdings, {
+    required String title,
+  }) async {
+    if (holdings.isEmpty) return null;
+    if (!ref.read(isTotalViewProvider) || holdings.length == 1) {
+      return holdings.first;
+    }
+    final portfolio = await showPortfolioPicker(
+      context,
+      portfolios: holdings
+          .map((holding) => holding.portfolio)
+          .toList(growable: false),
+      title: title,
+    );
+    if (portfolio == null) return null;
+    return holdings.firstWhere(
+      (holding) => holding.portfolio.id == portfolio.id,
     );
   }
 

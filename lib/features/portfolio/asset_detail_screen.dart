@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/asset_model.dart';
+import '../../shared/models/portfolio_write_target.dart';
 import '../../shared/models/transaction_model.dart';
 import '../../shared/providers.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../../shared/widgets/portfolio_picker.dart';
 import 'add_sell_sheet.dart';
 import 'edit_asset_screen.dart';
 
@@ -24,7 +26,7 @@ class AssetDetailScreen extends ConsumerWidget {
     );
     final allAssets = ref.watch(assetsProvider);
     final lots = allAssets.where((a) => a.symbol == mergedAsset.symbol).toList()
-      ..sort((a, b) => a.buyDate.compareTo(b.buyDate));
+      ..sort(compareAssetLotsForFifo);
 
     final mergedList = ref.watch(mergedAssetsProvider);
     final current = mergedList.firstWhere(
@@ -43,12 +45,7 @@ class AssetDetailScreen extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Düzenle',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => EditAssetScreen(asset: lots.first),
-                ),
-              ),
+              onPressed: () => _openEditScreen(context, ref, lots),
             ),
         ],
       ),
@@ -467,12 +464,23 @@ class AssetDetailScreen extends ConsumerWidget {
 
   // ─── Satış sheet'i ───
 
-  void _openSellSheet(BuildContext context, WidgetRef ref) {
+  Future<void> _openSellSheet(BuildContext context, WidgetRef ref) async {
     final allAssets = ref.read(assetsProvider);
     final lots = allAssets
         .where((a) => a.symbol == mergedAsset.symbol)
         .toList();
-    final totalQty = lots.fold(0.0, (sum, a) => sum + a.quantity);
+    final holdings = portfolioHoldingsForSymbol(
+      assets: lots,
+      portfolios: ref.read(portfoliosProvider),
+      symbol: mergedAsset.symbol,
+    );
+    final holding = await _selectHolding(
+      context,
+      ref,
+      holdings,
+      title: 'Satış Portföyü',
+    );
+    if (holding == null || !context.mounted) return;
 
     showModalBottomSheet(
       context: context,
@@ -481,10 +489,99 @@ class AssetDetailScreen extends ConsumerWidget {
       builder: (_) => AddSellSheet(
         symbol: mergedAsset.symbol,
         assetName: mergedAsset.name,
-        totalQuantity: totalQty,
+        totalQuantity: holding.quantity,
         currentPrice: mergedAsset.currentPrice,
         currency: mergedAsset.currency,
+        portfolioId: holding.portfolio.id,
+        portfolioName: ref.read(isTotalViewProvider)
+            ? holding.portfolio.name
+            : null,
       ),
+    );
+  }
+
+  Future<void> _openEditScreen(
+    BuildContext context,
+    WidgetRef ref,
+    List<AssetModel> lots,
+  ) async {
+    if (lots.isEmpty) return;
+    AssetModel selectedLot = lots.first;
+    if (ref.read(isTotalViewProvider) && lots.length > 1) {
+      final portfolioNames = {
+        for (final portfolio in ref.read(portfoliosProvider))
+          portfolio.id: portfolio.name,
+      };
+      final selected = await showModalBottomSheet<AssetModel>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) => SafeArea(
+          top: false,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(sheetContext).scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Düzenlenecek Lot',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 12),
+                ...lots.map(
+                  (lot) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.receipt_outlined),
+                    title: Text(
+                      '${_formatQty(lot.quantity)} adet · ${portfolioNames[lot.portfolioId] ?? 'Portföy'}',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      '${lot.buyDate.day}.${lot.buyDate.month}.${lot.buyDate.year}',
+                    ),
+                    onTap: () => Navigator.pop(sheetContext, lot),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (selected == null || !context.mounted) return;
+      selectedLot = selected;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => EditAssetScreen(asset: selectedLot)),
+    );
+  }
+
+  Future<PortfolioHolding?> _selectHolding(
+    BuildContext context,
+    WidgetRef ref,
+    List<PortfolioHolding> holdings, {
+    required String title,
+  }) async {
+    if (holdings.isEmpty) return null;
+    if (!ref.read(isTotalViewProvider) || holdings.length == 1) {
+      return holdings.first;
+    }
+    final portfolio = await showPortfolioPicker(
+      context,
+      portfolios: holdings
+          .map((holding) => holding.portfolio)
+          .toList(growable: false),
+      title: title,
+    );
+    if (portfolio == null) return null;
+    return holdings.firstWhere(
+      (holding) => holding.portfolio.id == portfolio.id,
     );
   }
 

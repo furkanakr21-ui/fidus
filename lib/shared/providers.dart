@@ -2,14 +2,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/constants/app_constants.dart';
 import 'models/asset_model.dart';
 import 'models/daily_asset_change.dart';
 import 'models/daily_portfolio_change.dart';
 import 'models/income_expense_model.dart';
 import 'models/goal_model.dart';
 import 'models/portfolio_asset_value_snapshot_model.dart';
-import 'models/portfolio_value_snapshot_model.dart';
 import 'models/portfolio_model.dart';
+import 'models/portfolio_scope.dart';
+import 'models/portfolio_value_snapshot_model.dart';
+import 'models/total_view_aggregation.dart';
 import 'models/transaction_model.dart';
 import 'services/asset_service.dart';
 import 'services/cashflow_service.dart';
@@ -56,11 +59,17 @@ final initialDataLoadTrackerProvider =
       InitialDataLoadTracker.new,
     );
 
+final portfolioDataSourceProvider = Provider<PortfolioDataSource>(
+  (_) => const SupabasePortfolioDataSource(),
+);
+
 // ─────────────────────────────────────────
 // Portföyler
 // ─────────────────────────────────────────
 
 class PortfoliosNotifier extends Notifier<List<PortfolioModel>> {
+  Future<void> _includeWriteQueue = Future.value();
+
   @override
   List<PortfolioModel> build() {
     Future.microtask(load);
@@ -71,21 +80,73 @@ class PortfoliosNotifier extends Notifier<List<PortfolioModel>> {
     ref
         .read(initialDataLoadTrackerProvider.notifier)
         .markLoading(InitialDataLoadTracker.portfolios);
-    state = await PortfolioService.getAll();
+    state = await ref.read(portfolioDataSourceProvider).getAll();
     ref
         .read(initialDataLoadTrackerProvider.notifier)
         .markReady(InitialDataLoadTracker.portfolios);
   }
 
   Future<PortfolioModel> create(String name, String emoji) async {
-    final p = await PortfolioService.create(name, emoji);
+    final p = await ref.read(portfolioDataSourceProvider).create(name, emoji);
     state = [...state, p];
     return p;
   }
 
   Future<void> delete(String id) async {
-    await PortfolioService.delete(id);
+    await ref.read(portfolioDataSourceProvider).delete(id);
     state = state.where((p) => p.id != id).toList();
+    if (ref.read(isTotalViewProvider) &&
+        !state.any((portfolio) => portfolio.includeInTotal)) {
+      await ref.read(activePortfolioProvider.notifier).leaveTotalView();
+    }
+  }
+
+  Future<void> setIncludeInTotal(String id, bool value) async {
+    final previous = state;
+    state = [
+      for (final portfolio in state)
+        if (portfolio.id == id)
+          portfolio.copyWith(includeInTotal: value)
+        else
+          portfolio,
+    ];
+    try {
+      await _queueIncludeWrite(
+        () =>
+            ref.read(portfolioDataSourceProvider).setIncludeInTotal(id, value),
+      );
+    } catch (_) {
+      final current = state.where((portfolio) => portfolio.id == id);
+      if (current.isNotEmpty && current.first.includeInTotal == value) {
+        final previousPortfolio = previous.where(
+          (portfolio) => portfolio.id == id,
+        );
+        if (previousPortfolio.isNotEmpty) {
+          state = [
+            for (final portfolio in state)
+              if (portfolio.id == id)
+                portfolio.copyWith(
+                  includeInTotal: previousPortfolio.first.includeInTotal,
+                )
+              else
+                portfolio,
+          ];
+        }
+      }
+      rethrow;
+    }
+
+    if (!value &&
+        ref.read(isTotalViewProvider) &&
+        !state.any((portfolio) => portfolio.includeInTotal)) {
+      await ref.read(activePortfolioProvider.notifier).leaveTotalView();
+    }
+  }
+
+  Future<void> _queueIncludeWrite(Future<void> Function() write) {
+    final operation = _includeWriteQueue.then((_) => write());
+    _includeWriteQueue = operation.then<void>((_) {}, onError: (_, _) {});
+    return operation;
   }
 }
 
@@ -94,11 +155,22 @@ final portfoliosProvider =
       PortfoliosNotifier.new,
     );
 
+final includedPortfolioIdsProvider = Provider<List<String>>((ref) {
+  return ref
+      .watch(portfoliosProvider)
+      .where((portfolio) => portfolio.includeInTotal)
+      .map((portfolio) => portfolio.id)
+      .toList(growable: false);
+});
+
 // ─────────────────────────────────────────
 // Aktif Portföy
 // ─────────────────────────────────────────
 
 class ActivePortfolioNotifier extends Notifier<String> {
+  int _selectionGeneration = 0;
+  Future<void> _serverWriteQueue = Future.value();
+
   @override
   String build() {
     Future.microtask(_loadFromServer);
@@ -106,21 +178,91 @@ class ActivePortfolioNotifier extends Notifier<String> {
   }
 
   Future<void> _loadFromServer() async {
-    final id = await PortfolioService.getActivePortfolioId();
-    if (id != null && id.isNotEmpty) {
-      state = id;
+    final generation = _selectionGeneration;
+    final dataSource = ref.read(portfolioDataSourceProvider);
+    final settings = await dataSource.getSettings();
+    final portfolios = await dataSource.getAll();
+    if (generation != _selectionGeneration) return;
+
+    final totalViewActive = settings['total_view_active'] as bool? ?? false;
+    final included = portfolios.where((portfolio) => portfolio.includeInTotal);
+    if (totalViewActive && included.isNotEmpty) {
+      state = kTotalPortfolioId;
+      return;
+    }
+
+    final storedId = settings['active_portfolio_id'] as String?;
+    final storedExists =
+        storedId != null &&
+        portfolios.any((portfolio) => portfolio.id == storedId);
+    final fallbackId = storedExists
+        ? storedId
+        : (portfolios.isEmpty ? null : portfolios.first.id);
+    if (fallbackId != null && fallbackId.isNotEmpty) {
+      if (generation == _selectionGeneration) state = fallbackId;
+      if (totalViewActive || !storedExists) {
+        await _queueServerWrite(
+          () => dataSource.setActivePortfolio(fallbackId),
+        );
+      }
     } else {
-      // Sunucuda kayıtlı portföy yoksa ilk portföyü al
-      final portfolios = await PortfolioService.getAll();
-      if (portfolios.isNotEmpty) {
-        await switchPortfolio(portfolios.first.id);
+      if (generation == _selectionGeneration) state = '';
+      if (totalViewActive) {
+        await _queueServerWrite(dataSource.setTotalViewInactive);
       }
     }
   }
 
-  Future<void> switchPortfolio(String portfolioId) async {
-    await PortfolioService.setActivePortfolio(portfolioId);
-    state = portfolioId;
+  Future<bool> switchPortfolio(String portfolioId) async {
+    final generation = ++_selectionGeneration;
+    if (portfolioId == kTotalPortfolioId) {
+      var portfolios = ref.read(portfoliosProvider);
+      final dataSource = ref.read(portfolioDataSourceProvider);
+      if (portfolios.isEmpty) portfolios = await dataSource.getAll();
+      if (generation != _selectionGeneration) return false;
+      if (!portfolios.any((portfolio) => portfolio.includeInTotal)) {
+        return false;
+      }
+      await _queueServerWrite(dataSource.setTotalViewActive);
+      if (generation == _selectionGeneration) state = kTotalPortfolioId;
+      return true;
+    }
+
+    await _queueServerWrite(
+      () =>
+          ref.read(portfolioDataSourceProvider).setActivePortfolio(portfolioId),
+    );
+    if (generation == _selectionGeneration) state = portfolioId;
+    return true;
+  }
+
+  Future<void> leaveTotalView() async {
+    final generation = ++_selectionGeneration;
+    final dataSource = ref.read(portfolioDataSourceProvider);
+    final settings = await dataSource.getSettings();
+    var portfolios = ref.read(portfoliosProvider);
+    if (portfolios.isEmpty) portfolios = await dataSource.getAll();
+    final storedId = settings['active_portfolio_id'] as String?;
+    final storedExists =
+        storedId != null &&
+        portfolios.any((portfolio) => portfolio.id == storedId);
+    final fallbackId = storedExists
+        ? storedId
+        : (portfolios.isEmpty ? null : portfolios.first.id);
+    if (generation != _selectionGeneration) return;
+    if (fallbackId == null) {
+      state = '';
+      await _queueServerWrite(dataSource.setTotalViewInactive);
+      return;
+    }
+    state = fallbackId;
+    await _queueServerWrite(() => dataSource.setActivePortfolio(fallbackId));
+  }
+
+  Future<void> _queueServerWrite(Future<void> Function() write) {
+    final operation = _serverWriteQueue.then((_) => write());
+    _serverWriteQueue = operation.then<void>((_) {}, onError: (_, _) {});
+    return operation;
   }
 }
 
@@ -132,6 +274,45 @@ final activePortfolioProvider =
 // Eski kod uyumluluğu için alias
 final activeProfileProvider = activePortfolioProvider;
 
+final isTotalViewProvider = Provider<bool>((ref) {
+  return ref.watch(activePortfolioProvider) == kTotalPortfolioId;
+});
+
+final portfolioScopeProvider = Provider<PortfolioScope>((ref) {
+  final activePortfolioId = ref.watch(activePortfolioProvider);
+  if (activePortfolioId == kTotalPortfolioId) {
+    return PortfolioScope.total(ref.watch(includedPortfolioIdsProvider));
+  }
+  return PortfolioScope.single(activePortfolioId);
+});
+
+PostgresChangeFilter _realtimeFilter(PortfolioScope scope) {
+  if (scope.isTotal) {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) {
+      throw StateError('Authenticated user is required for realtime scope');
+    }
+    return PostgresChangeFilter(
+      type: PostgresChangeFilterType.eq,
+      column: 'user_id',
+      value: userId,
+    );
+  }
+  return PostgresChangeFilter(
+    type: PostgresChangeFilterType.eq,
+    column: 'portfolio_id',
+    value: scope.singlePortfolioId!,
+  );
+}
+
+List<PortfolioModel> _portfolioModelsForScope(Ref ref, PortfolioScope scope) {
+  final ids = scope.portfolioIds.toSet();
+  return ref
+      .read(portfoliosProvider)
+      .where((portfolio) => ids.contains(portfolio.id))
+      .toList(growable: false);
+}
+
 // ─────────────────────────────────────────
 // Günlük Portföy Snapshot'ı
 // ─────────────────────────────────────────
@@ -141,40 +322,50 @@ class TodayPortfolioSnapshotNotifier extends Notifier<PortfolioValueSnapshot?> {
 
   @override
   PortfolioValueSnapshot? build() {
-    final portfolioId = ref.watch(activePortfolioProvider);
+    final scope = ref.watch(portfolioScopeProvider);
     _channel?.unsubscribe();
-    if (portfolioId.isEmpty) return null;
-    _setupRealtime(portfolioId);
-    Future.microtask(() => _load(portfolioId));
+    if (scope.isEmpty) return null;
+    _setupRealtime(scope);
+    Future.microtask(() => _load(scope));
     return null;
   }
 
-  void _setupRealtime(String portfolioId) {
+  void _setupRealtime(PortfolioScope scope) {
     _channel = supabase
-        .channel('portfolio_snapshots_$portfolioId')
+        .channel('portfolio_snapshots_${scope.channelKey}')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'portfolio_value_snapshots',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'portfolio_id',
-            value: portfolioId,
-          ),
-          callback: (_) => _load(portfolioId),
+          filter: _realtimeFilter(scope),
+          callback: (_) => _load(scope),
         )
         .subscribe();
     ref.onDispose(() => _channel?.unsubscribe());
   }
 
-  Future<void> _load(String portfolioId) async {
-    state = await PortfolioSnapshotService.getToday(portfolioId);
+  Future<void> _load(PortfolioScope scope) async {
+    final PortfolioValueSnapshot? snapshot;
+    if (scope.isTotal) {
+      final rows = await PortfolioSnapshotService.getTodayForPortfolios(
+        scope.portfolioIds,
+      );
+      snapshot = aggregateTodaySnapshots(
+        rows,
+        includedPortfolios: _portfolioModelsForScope(ref, scope),
+      );
+    } else {
+      snapshot = await PortfolioSnapshotService.getToday(
+        scope.singlePortfolioId!,
+      );
+    }
+    if (ref.read(portfolioScopeProvider) == scope) state = snapshot;
   }
 
   Future<void> refresh() async {
-    final portfolioId = ref.read(activePortfolioProvider);
-    if (portfolioId.isEmpty) return;
-    await _load(portfolioId);
+    final scope = ref.read(portfolioScopeProvider);
+    if (scope.isEmpty) return;
+    await _load(scope);
   }
 }
 
@@ -189,40 +380,50 @@ class PortfolioSnapshotHistoryNotifier
 
   @override
   List<PortfolioValueSnapshot> build() {
-    final portfolioId = ref.watch(activePortfolioProvider);
+    final scope = ref.watch(portfolioScopeProvider);
     _channel?.unsubscribe();
-    if (portfolioId.isEmpty) return [];
-    _setupRealtime(portfolioId);
-    Future.microtask(() => _load(portfolioId));
+    if (scope.isEmpty) return [];
+    _setupRealtime(scope);
+    Future.microtask(() => _load(scope));
     return [];
   }
 
-  void _setupRealtime(String portfolioId) {
+  void _setupRealtime(PortfolioScope scope) {
     _channel = supabase
-        .channel('portfolio_snapshot_history_$portfolioId')
+        .channel('portfolio_snapshot_history_${scope.channelKey}')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'portfolio_value_snapshots',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'portfolio_id',
-            value: portfolioId,
-          ),
-          callback: (_) => _load(portfolioId),
+          filter: _realtimeFilter(scope),
+          callback: (_) => _load(scope),
         )
         .subscribe();
     ref.onDispose(() => _channel?.unsubscribe());
   }
 
-  Future<void> _load(String portfolioId) async {
-    state = await PortfolioSnapshotService.getHistory(portfolioId);
+  Future<void> _load(PortfolioScope scope) async {
+    final List<PortfolioValueSnapshot> snapshots;
+    if (scope.isTotal) {
+      final rows = await PortfolioSnapshotService.getHistoryForPortfolios(
+        scope.portfolioIds,
+      );
+      snapshots = aggregateSnapshotHistory(
+        rows,
+        includedPortfolios: _portfolioModelsForScope(ref, scope),
+      );
+    } else {
+      snapshots = await PortfolioSnapshotService.getHistory(
+        scope.singlePortfolioId!,
+      );
+    }
+    if (ref.read(portfolioScopeProvider) == scope) state = snapshots;
   }
 
   Future<void> refresh() async {
-    final portfolioId = ref.read(activePortfolioProvider);
-    if (portfolioId.isEmpty) return;
-    await _load(portfolioId);
+    final scope = ref.read(portfolioScopeProvider);
+    if (scope.isEmpty) return;
+    await _load(scope);
   }
 }
 
@@ -238,41 +439,48 @@ class TodayAssetSnapshotsNotifier
 
   @override
   Map<String, PortfolioAssetValueSnapshot>? build() {
-    final portfolioId = ref.watch(activePortfolioProvider);
+    final scope = ref.watch(portfolioScopeProvider);
     _channel?.unsubscribe();
-    if (portfolioId.isEmpty) return {};
-    _setupRealtime(portfolioId);
-    Future.microtask(() => _load(portfolioId));
+    if (scope.isEmpty) return {};
+    _setupRealtime(scope);
+    Future.microtask(() => _load(scope));
     return null;
   }
 
-  void _setupRealtime(String portfolioId) {
+  void _setupRealtime(PortfolioScope scope) {
     _channel = supabase
-        .channel('portfolio_asset_snapshots_$portfolioId')
+        .channel('portfolio_asset_snapshots_${scope.channelKey}')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'portfolio_asset_value_snapshots',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'portfolio_id',
-            value: portfolioId,
-          ),
-          callback: (_) => _load(portfolioId),
+          filter: _realtimeFilter(scope),
+          callback: (_) => _load(scope),
         )
         .subscribe();
     ref.onDispose(() => _channel?.unsubscribe());
   }
 
-  Future<void> _load(String portfolioId) async {
-    final snapshots = await PortfolioAssetSnapshotService.getToday(portfolioId);
-    state = {for (final snapshot in snapshots) snapshot.symbol: snapshot};
+  Future<void> _load(PortfolioScope scope) async {
+    final Map<String, PortfolioAssetValueSnapshot> snapshots;
+    if (scope.isTotal) {
+      final rows = await PortfolioAssetSnapshotService.getTodayForPortfolios(
+        scope.portfolioIds,
+      );
+      snapshots = aggregateAssetSnapshotsBySymbol(rows);
+    } else {
+      final rows = await PortfolioAssetSnapshotService.getToday(
+        scope.singlePortfolioId!,
+      );
+      snapshots = {for (final snapshot in rows) snapshot.symbol: snapshot};
+    }
+    if (ref.read(portfolioScopeProvider) == scope) state = snapshots;
   }
 
   Future<void> refresh() async {
-    final portfolioId = ref.read(activePortfolioProvider);
-    if (portfolioId.isEmpty) return;
-    await _load(portfolioId);
+    final scope = ref.read(portfolioScopeProvider);
+    if (scope.isEmpty) return;
+    await _load(scope);
   }
 }
 
@@ -323,39 +531,43 @@ class AssetsNotifier extends Notifier<List<AssetModel>> {
 
   @override
   List<AssetModel> build() {
-    final portfolioId = ref.watch(activePortfolioProvider);
+    final scope = ref.watch(portfolioScopeProvider);
     _channel?.unsubscribe();
-    if (portfolioId.isEmpty) return [];
-    _setupRealtime(portfolioId);
-    Future.microtask(() => _load(portfolioId));
+    if (scope.isEmpty) {
+      Future.microtask(() => _load(scope));
+      return [];
+    }
+    _setupRealtime(scope);
+    Future.microtask(() => _load(scope));
     return [];
   }
 
-  void _setupRealtime(String portfolioId) {
+  void _setupRealtime(PortfolioScope scope) {
     _channel = supabase
-        .channel('assets_$portfolioId')
+        .channel('assets_${scope.channelKey}')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'assets',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'portfolio_id',
-            value: portfolioId,
-          ),
-          callback: (_) => _load(portfolioId),
+          filter: _realtimeFilter(scope),
+          callback: (_) => _load(scope),
         )
         .subscribe();
     ref.onDispose(() => _channel?.unsubscribe());
   }
 
-  Future<void> _load(String portfolioId) async {
+  Future<void> _load(PortfolioScope scope) async {
     ref
         .read(initialDataLoadTrackerProvider.notifier)
         .markLoading(InitialDataLoadTracker.assets);
-    final raw = await AssetService.getByPortfolio(portfolioId);
+    final raw = scope.isEmpty
+        ? <AssetModel>[]
+        : scope.isTotal
+        ? await AssetService.getByPortfolios(scope.portfolioIds)
+        : await AssetService.getByPortfolio(scope.singlePortfolioId!);
     final prices = ref.read(pricesProvider);
     final rate = ref.read(exchangeRatesProvider)['TRY'] ?? 1.0;
+    if (ref.read(portfolioScopeProvider) != scope) return;
     state = _applyPrices(raw, prices, rate);
     ref
         .read(initialDataLoadTrackerProvider.notifier)
@@ -383,15 +595,15 @@ class AssetsNotifier extends Notifier<List<AssetModel>> {
   }
 
   void applyCurrentPrices() {
-    final portfolioId = ref.read(activePortfolioProvider);
-    if (portfolioId.isEmpty) return;
-    _load(portfolioId);
+    final scope = ref.read(portfolioScopeProvider);
+    if (scope.isEmpty && ref.read(activePortfolioProvider).isEmpty) return;
+    _load(scope);
   }
 
   Future<void> load() async {
-    final portfolioId = ref.read(activePortfolioProvider);
-    if (portfolioId.isEmpty) return;
-    await _load(portfolioId);
+    final scope = ref.read(portfolioScopeProvider);
+    if (scope.isEmpty && ref.read(activePortfolioProvider).isEmpty) return;
+    await _load(scope);
   }
 
   Future<void> add(AssetModel asset) async {
@@ -562,46 +774,51 @@ class CashFlowNotifier extends Notifier<List<CashFlowModel>> {
 
   @override
   List<CashFlowModel> build() {
-    final portfolioId = ref.watch(activePortfolioProvider);
+    final scope = ref.watch(portfolioScopeProvider);
     _channel?.unsubscribe();
-    if (portfolioId.isEmpty) return [];
-    _setupRealtime(portfolioId);
-    Future.microtask(() => _load(portfolioId));
+    if (scope.isEmpty) {
+      Future.microtask(() => _load(scope));
+      return [];
+    }
+    _setupRealtime(scope);
+    Future.microtask(() => _load(scope));
     return [];
   }
 
-  void _setupRealtime(String portfolioId) {
+  void _setupRealtime(PortfolioScope scope) {
     _channel = supabase
-        .channel('cashflows_$portfolioId')
+        .channel('cashflows_${scope.channelKey}')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'cashflows',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'portfolio_id',
-            value: portfolioId,
-          ),
-          callback: (_) => _load(portfolioId),
+          filter: _realtimeFilter(scope),
+          callback: (_) => _load(scope),
         )
         .subscribe();
     ref.onDispose(() => _channel?.unsubscribe());
   }
 
-  Future<void> _load(String portfolioId) async {
+  Future<void> _load(PortfolioScope scope) async {
     ref
         .read(initialDataLoadTrackerProvider.notifier)
         .markLoading(InitialDataLoadTracker.cashflows);
-    state = await CashFlowService.getByPortfolio(portfolioId);
+    final cashflows = scope.isEmpty
+        ? <CashFlowModel>[]
+        : scope.isTotal
+        ? await CashFlowService.getByPortfolios(scope.portfolioIds)
+        : await CashFlowService.getByPortfolio(scope.singlePortfolioId!);
+    if (ref.read(portfolioScopeProvider) != scope) return;
+    state = cashflows;
     ref
         .read(initialDataLoadTrackerProvider.notifier)
         .markReady(InitialDataLoadTracker.cashflows);
   }
 
   Future<void> load() async {
-    final portfolioId = ref.read(activePortfolioProvider);
-    if (portfolioId.isEmpty) return;
-    await _load(portfolioId);
+    final scope = ref.read(portfolioScopeProvider);
+    if (scope.isEmpty && ref.read(activePortfolioProvider).isEmpty) return;
+    await _load(scope);
   }
 
   Future<void> add(CashFlowModel cash) async {
@@ -627,46 +844,51 @@ class GoalsNotifier extends Notifier<List<GoalModel>> {
 
   @override
   List<GoalModel> build() {
-    final portfolioId = ref.watch(activePortfolioProvider);
+    final scope = ref.watch(portfolioScopeProvider);
     _channel?.unsubscribe();
-    if (portfolioId.isEmpty) return [];
-    _setupRealtime(portfolioId);
-    Future.microtask(() => _load(portfolioId));
+    if (scope.isEmpty) {
+      Future.microtask(() => _load(scope));
+      return [];
+    }
+    _setupRealtime(scope);
+    Future.microtask(() => _load(scope));
     return [];
   }
 
-  void _setupRealtime(String portfolioId) {
+  void _setupRealtime(PortfolioScope scope) {
     _channel = supabase
-        .channel('goals_$portfolioId')
+        .channel('goals_${scope.channelKey}')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'goals',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'portfolio_id',
-            value: portfolioId,
-          ),
-          callback: (_) => _load(portfolioId),
+          filter: _realtimeFilter(scope),
+          callback: (_) => _load(scope),
         )
         .subscribe();
     ref.onDispose(() => _channel?.unsubscribe());
   }
 
-  Future<void> _load(String portfolioId) async {
+  Future<void> _load(PortfolioScope scope) async {
     ref
         .read(initialDataLoadTrackerProvider.notifier)
         .markLoading(InitialDataLoadTracker.goals);
-    state = await GoalService.getByPortfolio(portfolioId);
+    final goals = scope.isEmpty
+        ? <GoalModel>[]
+        : scope.isTotal
+        ? await GoalService.getByPortfolios(scope.portfolioIds)
+        : await GoalService.getByPortfolio(scope.singlePortfolioId!);
+    if (ref.read(portfolioScopeProvider) != scope) return;
+    state = goals;
     ref
         .read(initialDataLoadTrackerProvider.notifier)
         .markReady(InitialDataLoadTracker.goals);
   }
 
   Future<void> load() async {
-    final portfolioId = ref.read(activePortfolioProvider);
-    if (portfolioId.isEmpty) return;
-    await _load(portfolioId);
+    final scope = ref.read(portfolioScopeProvider);
+    if (scope.isEmpty && ref.read(activePortfolioProvider).isEmpty) return;
+    await _load(scope);
   }
 
   Future<void> add(GoalModel goal) async {
@@ -696,35 +918,45 @@ class TransactionsNotifier extends Notifier<List<TransactionModel>> {
 
   @override
   List<TransactionModel> build() {
-    final portfolioId = ref.watch(activePortfolioProvider);
+    final scope = ref.watch(portfolioScopeProvider);
     _channel?.unsubscribe();
-    if (portfolioId.isEmpty) return [];
-    _setupRealtime(portfolioId);
-    Future.microtask(() => _load(portfolioId));
+    if (scope.isEmpty) return [];
+    _setupRealtime(scope);
+    Future.microtask(() => _load(scope));
     return [];
   }
 
-  void _setupRealtime(String portfolioId) {
+  void _setupRealtime(PortfolioScope scope) {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
     _channel = supabase
-        .channel('transactions_$portfolioId')
+        .channel('transactions_${scope.channelKey}')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'transactions',
-          callback: (_) => _load(portfolioId),
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: userId,
+          ),
+          callback: (_) => _load(scope),
         )
         .subscribe();
     ref.onDispose(() => _channel?.unsubscribe());
   }
 
-  Future<void> _load(String portfolioId) async {
-    state = await TransactionService.getByPortfolio(portfolioId);
+  Future<void> _load(PortfolioScope scope) async {
+    final transactions = scope.isTotal
+        ? await TransactionService.getByPortfolios(scope.portfolioIds)
+        : await TransactionService.getByPortfolio(scope.singlePortfolioId!);
+    if (ref.read(portfolioScopeProvider) == scope) state = transactions;
   }
 
   Future<void> load() async {
-    final portfolioId = ref.read(activePortfolioProvider);
-    if (portfolioId.isEmpty) return;
-    await _load(portfolioId);
+    final scope = ref.read(portfolioScopeProvider);
+    if (scope.isEmpty) return;
+    await _load(scope);
   }
 
   Future<void> add(TransactionModel tx) async {
@@ -802,7 +1034,7 @@ class CurrencyNotifier extends Notifier<String> {
     ref
         .read(initialDataLoadTrackerProvider.notifier)
         .markLoading(InitialDataLoadTracker.currency);
-    final s = await PortfolioService.getSettings();
+    final s = await ref.read(portfolioDataSourceProvider).getSettings();
     state = s['currency'] ?? 'TRY';
     ref
         .read(initialDataLoadTrackerProvider.notifier)
@@ -810,7 +1042,9 @@ class CurrencyNotifier extends Notifier<String> {
   }
 
   Future<void> setCurrency(String currency) async {
-    await PortfolioService.saveSettings(currency: currency);
+    await ref
+        .read(portfolioDataSourceProvider)
+        .saveSettings(currency: currency);
     state = currency;
   }
 }
@@ -827,7 +1061,7 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
   }
 
   Future<void> _load() async {
-    final s = await PortfolioService.getSettings();
+    final s = await ref.read(portfolioDataSourceProvider).getSettings();
     state = _parse(s['theme']);
   }
 
@@ -843,7 +1077,7 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
       ThemeMode.dark => 'dark',
       _ => 'system',
     };
-    await PortfolioService.saveSettings(theme: key);
+    await ref.read(portfolioDataSourceProvider).saveSettings(theme: key);
     state = mode;
   }
 }

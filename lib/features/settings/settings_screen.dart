@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/providers.dart';
 import '../../shared/models/portfolio_model.dart';
 import '../../shared/services/auth_service.dart';
 import '../../shared/services/portfolio_service.dart';
 import '../../shared/services/supabase_service.dart';
+import 'total_view_controls.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -18,6 +20,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String? _syncCode;
   DateTime? _lastPriceUpdate;
+  bool _isSelectingTotalView = false;
 
   @override
   void initState() {
@@ -51,6 +54,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final activePortfolio = ref.watch(activePortfolioProvider);
     final portfolios = ref.watch(portfoliosProvider);
+    final isTotalView = ref.watch(isTotalViewProvider);
+    final includedCount = ref.watch(includedPortfolioIdsProvider).length;
     final currency = ref.watch(currencyProvider);
     final themeMode = ref.watch(themeModeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -98,7 +103,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 20),
 
               // ── Aktif Portföy ──
-              _buildPortfolioHeroCard(context, activePortfolioData, isDark),
+              _buildPortfolioHeroCard(
+                context,
+                activePortfolioData,
+                isDark,
+                isTotalView: isTotalView,
+                includedCount: includedCount,
+              ),
               const SizedBox(height: 24),
 
               // ── Hesap Senkronizasyonu ──
@@ -221,6 +232,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   vertical: 4,
                 ),
                 children: [
+                  TotalPortfolioTile(
+                    includedCount: includedCount,
+                    isActive: isTotalView,
+                    onSelect: () => _selectTotalView(context),
+                    onConfigure: () => _showTotalViewSettings(context),
+                  ),
+                  Divider(
+                    height: 1,
+                    color: isDark
+                        ? AppColors.darkBorder
+                        : AppColors.lightBorder,
+                  ),
                   ...portfolios.asMap().entries.map((entry) {
                     final i = entry.key;
                     final p = entry.value;
@@ -749,8 +772,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildPortfolioHeroCard(
     BuildContext context,
     PortfolioModel portfolio,
-    bool isDark,
-  ) {
+    bool isDark, {
+    required bool isTotalView,
+    required int includedCount,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
@@ -783,10 +808,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
             child: Center(
-              child: Text(
-                portfolio.emoji,
-                style: const TextStyle(fontSize: 26),
-              ),
+              child: isTotalView
+                  ? const Icon(
+                      Icons.donut_large_rounded,
+                      color: Colors.white,
+                      size: 27,
+                    )
+                  : Text(portfolio.emoji, style: const TextStyle(fontSize: 26)),
             ),
           ),
           const SizedBox(width: 16),
@@ -795,7 +823,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  portfolio.name,
+                  isTotalView ? 'Portföyler Toplamı' : portfolio.name,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -814,7 +842,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Aktif Portföy',
+                    isTotalView
+                        ? '$includedCount portföy dahil'
+                        : 'Aktif Portföy',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 11,
@@ -971,6 +1001,85 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  Future<void> _selectTotalView(BuildContext context) async {
+    if (_isSelectingTotalView) return;
+    if (ref.read(includedPortfolioIdsProvider).isEmpty) {
+      final shouldConfigure = await showNoIncludedPortfoliosDialog(context);
+      if (shouldConfigure && context.mounted) {
+        _showTotalViewSettings(context);
+      }
+      return;
+    }
+
+    _isSelectingTotalView = true;
+    try {
+      final selected = await ref
+          .read(activePortfolioProvider.notifier)
+          .switchPortfolio(kTotalPortfolioId);
+      if (!context.mounted) return;
+      if (!selected) {
+        final shouldConfigure = await showNoIncludedPortfoliosDialog(context);
+        if (shouldConfigure && context.mounted) {
+          _showTotalViewSettings(context);
+        }
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Portföyler Toplamı görünümüne geçildi'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Toplam görünüm açılamadı, lütfen tekrar deneyin'),
+          backgroundColor: AppColors.loss,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      _isSelectingTotalView = false;
+    }
+  }
+
+  Future<void> _showTotalViewSettings(BuildContext context) async {
+    final portfolios = ref.read(portfoliosProvider);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => FractionallySizedBox(
+        heightFactor: 0.78,
+        child: TotalViewSettingsSheet(
+          portfolios: portfolios,
+          onChanged: (portfolioId, value) async {
+            final wasTotalView = ref.read(isTotalViewProvider);
+            final wasLastIncluded =
+                !value &&
+                ref.read(includedPortfolioIdsProvider).length == 1 &&
+                ref.read(includedPortfolioIdsProvider).contains(portfolioId);
+            await ref
+                .read(portfoliosProvider.notifier)
+                .setIncludeInTotal(portfolioId, value);
+            if (wasTotalView && wasLastIncluded && sheetContext.mounted) {
+              ScaffoldMessenger.of(sheetContext).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Toplam görünüm kapatıldı. En az bir portföy seçmeniz gerekiyor.',
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          },
+        ),
+      ),
     );
   }
 
@@ -1223,6 +1332,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           TextButton(
             onPressed: () async {
+              if (ref.read(isTotalViewProvider)) {
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Veri silmek için önce gerçek bir portföy seçin.',
+                      ),
+                      backgroundColor: AppColors.loss,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+                return;
+              }
               final portfolioId = ref.read(activePortfolioProvider);
               if (portfolioId.isNotEmpty) {
                 await supabase

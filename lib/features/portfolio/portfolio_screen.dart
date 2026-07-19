@@ -7,6 +7,7 @@ import '../../shared/models/daily_portfolio_change.dart';
 import '../../shared/models/portfolio_history_chart_data.dart';
 import '../../shared/providers.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../../shared/widgets/total_view_badge.dart';
 import 'position_sheet.dart';
 
 class PortfolioScreen extends ConsumerStatefulWidget {
@@ -284,59 +285,67 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     final isLoading = ref.watch(priceLoadingProvider);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 22, 8, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Portföy',
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -1.2,
-                    color: isDark ? AppColors.darkText : AppColors.lightText,
-                  ),
-                ),
-                if (count > 0)
-                  Text(
-                    '$count varlık takip ediliyor',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.lightTextSecondary,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Portföy',
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1.2,
+                        color: isDark
+                            ? AppColors.darkText
+                            : AppColors.lightText,
+                      ),
                     ),
-                  ),
-              ],
-            ),
-          ),
-          if (isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.market,
+                    if (count > 0)
+                      Text(
+                        '$count varlık takip ediliyor',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            )
-          else
-            IconButton(
-              onPressed: () =>
-                  ref.read(priceUpdateProvider.notifier).updatePrices(),
-              icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'Fiyatları Güncelle',
-            ),
-          IconButton(
-            onPressed: () => _showSortSheet(context),
-            icon: const Icon(Icons.sort_rounded),
-            tooltip: 'Sırala',
+              if (isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.market,
+                    ),
+                  ),
+                )
+              else
+                IconButton(
+                  onPressed: () =>
+                      ref.read(priceUpdateProvider.notifier).updatePrices(),
+                  icon: const Icon(Icons.refresh_rounded),
+                  tooltip: 'Fiyatları Güncelle',
+                ),
+              IconButton(
+                onPressed: () => _showSortSheet(context),
+                icon: const Icon(Icons.sort_rounded),
+                tooltip: 'Sırala',
+              ),
+            ],
           ),
+          const TotalViewBadge(),
         ],
       ),
     );

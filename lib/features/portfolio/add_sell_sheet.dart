@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/asset_model.dart';
+import '../../shared/models/portfolio_write_target.dart';
 import '../../shared/models/transaction_model.dart';
 import '../../shared/providers.dart';
 import '../../shared/services/asset_service.dart';
@@ -14,6 +15,8 @@ class AddSellSheet extends ConsumerStatefulWidget {
   final double totalQuantity;
   final double? currentPrice;
   final String currency;
+  final String portfolioId;
+  final String? portfolioName;
 
   const AddSellSheet({
     super.key,
@@ -22,6 +25,8 @@ class AddSellSheet extends ConsumerStatefulWidget {
     required this.totalQuantity,
     this.currentPrice,
     required this.currency,
+    required this.portfolioId,
+    this.portfolioName,
   });
 
   @override
@@ -93,17 +98,33 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
       _showError('Satış fiyatı 0\'dan büyük olmalı');
       return;
     }
+    final portfolioId = resolveWritePortfolioId(
+      activePortfolioId: widget.portfolioId,
+    );
+    if (portfolioId == null) {
+      _showError('Satış için geçerli bir portföy seçilemedi');
+      return;
+    }
 
     setState(() => _isSaving = true);
 
     try {
-      final portfolioId = ref.read(activePortfolioProvider);
-
       // Lotları önce çek — assetId için ve FIFO'da tekrar DB çağrısı yapmamak için
       final lots = await _fetchSortedLots(portfolioId);
       if (lots.isEmpty) {
         setState(() => _isSaving = false);
         _showError('Satılacak lot bulunamadı');
+        return;
+      }
+      final availableQuantity = lots.fold(
+        0.0,
+        (sum, lot) => sum + lot.quantity,
+      );
+      if (qty > availableQuantity) {
+        setState(() => _isSaving = false);
+        _showError(
+          'Güncel miktar ${_formatQty(availableQuantity)}. Satış miktarını kontrol edin',
+        );
         return;
       }
 
@@ -137,15 +158,16 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isSaving = false);
-      _showError('Bir hata oluştu, lütfen tekrar deneyin');
+      _showError('Satış tamamlanamadı. Portföyü yenileyip kontrol edin');
     }
   }
 
   Future<List<AssetModel>> _fetchSortedLots(String portfolioId) async {
     final all = await AssetService.getByPortfolio(portfolioId);
     return all.where((a) => a.symbol == widget.symbol).toList()
-      ..sort((a, b) => a.buyDate.compareTo(b.buyDate));
+      ..sort(compareAssetLotsForFifo);
   }
 
   Future<void> _applyFifo(double sellQty, List<AssetModel> lots) async {
@@ -232,7 +254,7 @@ class _AddSellSheetState extends ConsumerState<AddSellSheet> {
                           ),
                         ),
                         Text(
-                          'Eldeki miktar: ${_formatQty(widget.totalQuantity)} · FIFO uygulanır',
+                          '${widget.portfolioName == null ? '' : '${widget.portfolioName} · '}Eldeki miktar: ${_formatQty(widget.totalQuantity)} · FIFO uygulanır',
                           style: TextStyle(
                             fontSize: 11,
                             color: theme.textTheme.bodySmall?.color,
